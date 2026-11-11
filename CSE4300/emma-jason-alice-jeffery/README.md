@@ -126,5 +126,5 @@ Only the “pick next job” and “how long to run” steps change between algo
 | 3 Makefile, main, stubs | Done |
 | 4 Ready queue | Done |
 | 5 Metrics | Done |
-| 6 Algorithms (FCFS / SJF / RR) | Not started |
-| 7 Full tests | Smoke tests only |
+| 6 Algorithms (FCFS / SJF / RR) | Done |
+| 7 Full tests | Done (smoke tests and scheduler algo test |

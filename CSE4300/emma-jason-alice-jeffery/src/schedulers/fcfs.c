@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "scheduler.h"
+#include "../../include/scheduler.h"
 
 void run_fcfs(Process procs[], int n, int quantum)
 {

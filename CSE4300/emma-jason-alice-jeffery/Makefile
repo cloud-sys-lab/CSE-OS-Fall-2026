@@ -23,5 +23,15 @@ build:
 test_queue: src/queue.c tests/test_queue.c
 	$(CC) $(CFLAGS) -o $@ src/queue.c tests/test_queue.c
 
+# test_metrics build rule and runs all tests 
+test_metrics: src/metrics.c tests/test_metrics.c
+	$(CC) $(CFLAGS) -o $@ src/metrics.c tests/test_metrics.c
+ 
+# build everything, run C unit tests and Python CLI tests
+test: scheduler test_queue test_metrics
+	./test_queue
+	./test_metrics
+	python3 tests/run_tests.py
+	
 clean:
-	rm -rf build scheduler test_queue
+	rm -rf build scheduler test_queue test_metrics *.dSYM

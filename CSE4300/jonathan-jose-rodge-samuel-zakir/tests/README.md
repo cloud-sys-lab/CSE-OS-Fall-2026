@@ -22,6 +22,10 @@ hangs or crashes before `main()`. Run them on Linux, e.g. the course VM.
 | `framework.h/.c` | Minimal test runner: `CHECK`, `TEST`, `TEST_XFAIL` |
 | `worker_helpers.h/.c` | Fake clients, enqueue helpers, line/JSON/history readers |
 | `test_worker.c` | Unit tests for the worker thread (`server_worker.c`) |
+| `test_manager.c` | Unit tests for the manager (`server_manager.c`), using only its public API |
+| `test_client.c` | Black-box tests for the client: runs the real `client` program against a fake server, types into it, and checks what it sends and prints |
+| `test_integration.c` | End-to-end tests: runs the real `server` and several real `client` programs together and checks that messages, history and disconnects work across the whole system |
+>>>>>>> ab59889 (Add chat server and end-to-end tests)
 
 New components get their own file, e.g. `test_manager.c`, plus a binary target in the `Makefile`.
 

@@ -6,6 +6,7 @@ static int count;
 
 static void stcf_enqueue(tcb_t *t)
 {
+    
 }
 
 static tcb_t *stcf_pick_next(void)
@@ -15,7 +16,7 @@ static tcb_t *stcf_pick_next(void)
 
 static int stcf_should_preempt(tcb_t *running)
 {
-    return 0;
+    return 1;
 }
 
 sched_policy_t stcf_policy = {

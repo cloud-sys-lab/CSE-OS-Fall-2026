@@ -12,5 +12,6 @@ int main(void)
     uthread_create(worker, "A", NULL);
     uthread_create(worker, "B", NULL);
     uthread_run();
+    printf("all threads finished\n");
     return 0;
 }

@@ -1,16 +1,17 @@
 #include <stddef.h>
 #include "uthread_internal.h"
+#include "queue.h"
 
-static tcb_t *queue[MAX_THREADS];
-static int count;
+static queue_t ready;
 
 static void fcfs_enqueue(tcb_t *t)
 {
+    queue_push(&ready, t);
 }
 
 static tcb_t *fcfs_pick_next(void)
 {
-    return NULL;
+    return queue_pop(&ready);
 }
 
 static int fcfs_should_preempt(tcb_t *running)

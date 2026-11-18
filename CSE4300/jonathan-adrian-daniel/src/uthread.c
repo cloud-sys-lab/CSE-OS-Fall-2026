@@ -1,5 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <sys/time.h>
 #include "uthread_internal.h"
 
 #define STACK_SIZE (64 * 1024)
@@ -14,6 +16,22 @@ static int thread_count;
 
 static tcb_t *sleeping[MAX_THREADS];
 static int sleeping_count;
+
+static void preempt_disable(void)
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+}
+
+static void preempt_enable(void)
+{
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    sigprocmask(SIG_UNBLOCK, &set, NULL);
+}
 
 static void schedule(void)
 {
@@ -39,12 +57,42 @@ static void schedule(void)
 static void thread_start(void)
 {
     running->fn(running->arg);
+    preempt_disable();
     running->state = DONE;
     schedule();
 }
 
 static void on_timer(int sig)
 {
+    if (running == NULL)
+        return;
+
+    if (policy->should_preempt(running)) {
+        running->state = READY;
+        policy->enqueue(running);
+        schedule();
+    }
+}
+
+static void start_timer(void)
+{
+    struct sigaction sa = {0};
+    sa.sa_handler = on_timer;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sigaction(SIGALRM, &sa, NULL);
+
+    struct itimerval tv = {0};
+    tv.it_interval.tv_sec = quantum_ms / 1000;
+    tv.it_interval.tv_usec = (quantum_ms % 1000) * 1000;
+    tv.it_value = tv.it_interval;
+    setitimer(ITIMER_REAL, &tv, NULL);
+}
+
+static void stop_timer(void)
+{
+    struct itimerval tv = {0};
+    setitimer(ITIMER_REAL, &tv, NULL);
 }
 
 int uthread_init(policy_t which, int q)
@@ -66,12 +114,17 @@ int uthread_create(void (*fn)(void *), void *arg, const uthread_attr_t *attr)
     if (policy == NULL || thread_count == MAX_THREADS)
         return -1;
 
+    preempt_disable();
+
     tcb_t *t = calloc(1, sizeof *t);
-    if (t == NULL)
+    if (t == NULL) {
+        preempt_enable();
         return -1;
+    }
     t->stack = malloc(STACK_SIZE);
     if (t->stack == NULL) {
         free(t);
+        preempt_enable();
         return -1;
     }
 
@@ -84,11 +137,14 @@ int uthread_create(void (*fn)(void *), void *arg, const uthread_attr_t *attr)
     t->ctx.uc_stack.ss_sp = t->stack;
     t->ctx.uc_stack.ss_size = STACK_SIZE;
     t->ctx.uc_link = NULL;
+    sigdelset(&t->ctx.uc_sigmask, SIGALRM);
     makecontext(&t->ctx, thread_start, 0);
 
     t->state = READY;
     threads[thread_count++] = t;
     policy->enqueue(t);
+
+    preempt_enable();
     return t->tid;
 }
 
@@ -97,9 +153,11 @@ void uthread_yield(void)
     if (running == NULL)
         return;
 
+    preempt_disable();
     running->state = READY;
     policy->enqueue(running);
     schedule();
+    preempt_enable();
 }
 
 void uthread_sleep(int ms)
@@ -108,10 +166,14 @@ void uthread_sleep(int ms)
 
 void uthread_run(void)
 {
+    preempt_disable();
+
     running = policy->pick_next();
     if (running != NULL) {
         running->state = RUNNING;
+        start_timer();
         swapcontext(&main_ctx, &running->ctx);
+        stop_timer();
     }
 
     for (int i = 0; i < thread_count; i++) {
@@ -119,4 +181,6 @@ void uthread_run(void)
         free(threads[i]);
     }
     thread_count = 0;
+
+    preempt_enable();
 }

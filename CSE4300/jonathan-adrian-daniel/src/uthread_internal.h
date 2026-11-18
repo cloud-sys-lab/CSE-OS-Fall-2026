@@ -13,6 +13,8 @@ typedef struct tcb {
     tstate_t state;
     ucontext_t ctx;
     void *stack;
+    void (*fn)(void *);
+    void *arg;
     int expected_ms;
     long wake_at;
 } tcb_t;

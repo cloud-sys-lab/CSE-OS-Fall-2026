@@ -6,16 +6,17 @@ static queue_t ready;
 
 static void rr_enqueue(tcb_t *t)
 {
+    queue_push(&ready, t);
 }
 
 static tcb_t *rr_pick_next(void)
 {
-    return NULL;
+    return queue_pop(&ready);
 }
 
 static int rr_should_preempt(tcb_t *running)
 {
-    return 0;
+    return 1;
 }
 
 sched_policy_t rr_policy = {

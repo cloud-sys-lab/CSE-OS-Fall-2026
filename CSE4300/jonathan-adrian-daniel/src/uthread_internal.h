@@ -4,6 +4,8 @@
 #include <ucontext.h>
 #include "uthread.h"
 
+#define MAX_THREADS 128
+
 typedef enum { READY, RUNNING, BLOCKED, DONE } tstate_t;
 
 typedef struct tcb {

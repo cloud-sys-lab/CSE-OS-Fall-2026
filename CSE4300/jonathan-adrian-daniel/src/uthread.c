@@ -26,6 +26,11 @@ static void schedule(void)
         return;
     }
 
+    if (next == prev) {
+        next->state = RUNNING;
+        return;
+    }
+
     running = next;
     next->state = RUNNING;
     swapcontext(&prev->ctx, &next->ctx);
@@ -89,6 +94,12 @@ int uthread_create(void (*fn)(void *), void *arg, const uthread_attr_t *attr)
 
 void uthread_yield(void)
 {
+    if (running == NULL)
+        return;
+
+    running->state = READY;
+    policy->enqueue(running);
+    schedule();
 }
 
 void uthread_sleep(int ms)

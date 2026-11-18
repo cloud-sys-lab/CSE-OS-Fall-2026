@@ -1,10 +1,10 @@
 #include <stddef.h>
 #include "uthread_internal.h"
+#include "queue.h"
 
 #define MLFQ_LEVELS 3
 
-static tcb_t *queues[MLFQ_LEVELS][MAX_THREADS];
-static int counts[MLFQ_LEVELS];
+static queue_t levels[MLFQ_LEVELS];
 
 static void mlfq_enqueue(tcb_t *t)
 {

@@ -1,8 +1,8 @@
 #include <stddef.h>
 #include "uthread_internal.h"
+#include "queue.h"
 
-static tcb_t *queue[MAX_THREADS];
-static int count;
+static queue_t ready;
 
 static void rr_enqueue(tcb_t *t)
 {

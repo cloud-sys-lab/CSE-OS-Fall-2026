@@ -1,0 +1,98 @@
+[
+  {
+    "file": "src/policies/mlfq.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c11",
+      "-Wall",
+      "-g",
+      "-D_XOPEN_SOURCE=600",
+      "-D_DARWIN_C_SOURCE",
+      "-Wno-deprecated-declarations",
+      "-Iinclude",
+      "-Isrc",
+      "-c",
+      "src/policies/mlfq.c",
+      "-o",
+      "build/src/policies/mlfq.o"
+    ],
+    "directory": "/home/malbyte/Documents/OSClass/CSE-OS-Fall-2026/CSE4300/jonathan-adrian-daniel",
+    "output": "build/src/policies/mlfq.o"
+  },
+  {
+    "file": "tests/test_basic.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c11",
+      "-Wall",
+      "-g",
+      "-D_XOPEN_SOURCE=600",
+      "-D_DARWIN_C_SOURCE",
+      "-Wno-deprecated-declarations",
+      "-Iinclude",
+      "-Isrc",
+      "tests/test_basic.c",
+      "-o",
+      "build/tests/test_basic"
+    ],
+    "directory": "/home/malbyte/Documents/OSClass/CSE-OS-Fall-2026/CSE4300/jonathan-adrian-daniel",
+    "output": "build/tests/test_basic"
+  },
+  {
+    "file": "tests/test_preempt.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c11",
+      "-Wall",
+      "-g",
+      "-D_XOPEN_SOURCE=600",
+      "-D_DARWIN_C_SOURCE",
+      "-Wno-deprecated-declarations",
+      "-Iinclude",
+      "-Isrc",
+      "tests/test_preempt.c",
+      "-o",
+      "build/tests/test_preempt"
+    ],
+    "directory": "/home/malbyte/Documents/OSClass/CSE-OS-Fall-2026/CSE4300/jonathan-adrian-daniel",
+    "output": "build/tests/test_preempt"
+  },
+  {
+    "file": "tests/test_sjf.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c11",
+      "-Wall",
+      "-g",
+      "-D_XOPEN_SOURCE=600",
+      "-D_DARWIN_C_SOURCE",
+      "-Wno-deprecated-declarations",
+      "-Iinclude",
+      "-Isrc",
+      "tests/test_sjf.c",
+      "-o",
+      "build/tests/test_sjf"
+    ],
+    "directory": "/home/malbyte/Documents/OSClass/CSE-OS-Fall-2026/CSE4300/jonathan-adrian-daniel",
+    "output": "build/tests/test_sjf"
+  },
+  {
+    "file": "tests/test_yield.c",
+    "arguments": [
+      "/usr/bin/cc",
+      "-std=c11",
+      "-Wall",
+      "-g",
+      "-D_XOPEN_SOURCE=600",
+      "-D_DARWIN_C_SOURCE",
+      "-Wno-deprecated-declarations",
+      "-Iinclude",
+      "-Isrc",
+      "tests/test_yield.c",
+      "-o",
+      "build/tests/test_yield"
+    ],
+    "directory": "/home/malbyte/Documents/OSClass/CSE-OS-Fall-2026/CSE4300/jonathan-adrian-daniel",
+    "output": "build/tests/test_yield"
+  }
+]

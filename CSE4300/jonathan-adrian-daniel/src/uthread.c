@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <time.h>
 #include "uthread_internal.h"
 
 #define STACK_SIZE (64 * 1024)
@@ -33,10 +34,42 @@ static void preempt_enable(void)
     sigprocmask(SIG_UNBLOCK, &set, NULL);
 }
 
+static long now_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
+
+static void wake_sleepers(void)
+{
+    long now = now_ms();
+    int i = 0;
+
+    while (i < sleeping_count) {
+        tcb_t *t = sleeping[i];
+        if (t->wake_at <= now) {
+            sleeping[i] = sleeping[--sleeping_count];
+            t->state = READY;
+            policy->enqueue(t);
+        } else {
+            i++;
+        }
+    }
+}
+
 static void schedule(void)
 {
     tcb_t *prev = running;
     tcb_t *next = policy->pick_next();
+
+    while (next == NULL && sleeping_count > 0) {
+        sigset_t none;
+        sigemptyset(&none);
+        running = NULL;
+        sigsuspend(&none);
+        next = policy->pick_next();
+    }
 
     if (next == NULL) {
         running = NULL;
@@ -45,6 +78,7 @@ static void schedule(void)
     }
 
     if (next == prev) {
+        running = next;
         next->state = RUNNING;
         return;
     }
@@ -64,6 +98,8 @@ static void thread_start(void)
 
 static void on_timer(int sig)
 {
+    wake_sleepers();
+
     if (running == NULL)
         return;
 
@@ -162,6 +198,15 @@ void uthread_yield(void)
 
 void uthread_sleep(int ms)
 {
+    if (running == NULL)
+        return;
+
+    preempt_disable();
+    running->state = BLOCKED;
+    running->wake_at = now_ms() + ms;
+    sleeping[sleeping_count++] = running;
+    schedule();
+    preempt_enable();
 }
 
 void uthread_run(void)

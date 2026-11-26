@@ -1,10 +1,12 @@
 #include <stddef.h>
 #include "heap.h"
 
-static int entry_less(const heap_entry_t *a, const heap_entry_t *b)
+static int entry_less(const heap_t *h, const heap_entry_t *a, const heap_entry_t *b)
 {
-    if (a->t->expected_ms != b->t->expected_ms)
-        return a->t->expected_ms < b->t->expected_ms;
+    if (h->less(a->t, b->t))
+        return 1;
+    if (h->less(b->t, a->t))
+        return 0;
     return a->seq < b->seq;
 }
 
@@ -19,7 +21,7 @@ static void sift_up(heap_t *h, int i)
 {
     while (i > 0) {
         int parent = (i - 1) / 2;
-        if (!entry_less(&h->items[i], &h->items[parent]))
+        if (!entry_less(h, &h->items[i], &h->items[parent]))
             break;
         swap(h, i, parent);
         i = parent;
@@ -33,9 +35,9 @@ static void sift_down(heap_t *h, int i)
         int right = left + 1;
         int smallest = i;
 
-        if (left < h->count && entry_less(&h->items[left], &h->items[smallest]))
+        if (left < h->count && entry_less(h, &h->items[left], &h->items[smallest]))
             smallest = left;
-        if (right < h->count && entry_less(&h->items[right], &h->items[smallest]))
+        if (right < h->count && entry_less(h, &h->items[right], &h->items[smallest]))
             smallest = right;
         if (smallest == i)
             break;

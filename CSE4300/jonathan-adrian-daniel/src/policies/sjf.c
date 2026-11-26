@@ -2,7 +2,12 @@
 #include "uthread_internal.h"
 #include "heap.h"
 
-static heap_t ready;
+static int by_expected(const tcb_t *a, const tcb_t *b)
+{
+    return a->expected_ms < b->expected_ms;
+}
+
+static heap_t ready = { .less = by_expected };
 
 static void sjf_enqueue(tcb_t *t)
 {
@@ -16,7 +21,6 @@ static tcb_t *sjf_pick_next(void)
 
 static int sjf_should_preempt(tcb_t *running)
 {
-    (void) running;
     return 0;
 }
 

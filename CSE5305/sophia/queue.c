@@ -10,6 +10,9 @@ void init_queue(JobQueue *queue){
     queue->front = 0;
     queue->rear = 0;
     queue->count = 0;
+
+    // Mutex Lock: Prevent multiple threads from accessing/modyfying the shared queue data at the same time
+    pthread_mutex_init(&queue->mutex, NULL);
 }
 
 
@@ -34,7 +37,11 @@ int queue_full(JobQueue *queue){
     - 1 = success
     - 0 = queue is already full; failure */
 int enqueue(JobQueue *queue, Job job){
+    // Acquire Lock
+    pthread_mutex_lock(&queue->mutex);
     if (queue_full(queue)){
+        // Release Lock upon return
+        pthread_mutex_unlock(&queue->mutex); 
         return 0;
     }
 
@@ -43,6 +50,9 @@ int enqueue(JobQueue *queue, Job job){
     // Modulo allows the queue to wrap around as a circular buffer
     queue->rear = (queue->rear + 1) % MAX_QUEUE_SIZE;
     queue->count++;
+
+    // Release Lock upon return
+    pthread_mutex_unlock(&queue->mutex);
 
     return 1;
 }
@@ -53,7 +63,11 @@ int enqueue(JobQueue *queue, Job job){
     - 1 = success
     - 0 = queue is empty; failure */
 int dequeue(JobQueue *queue, Job *job){
+    // Acquire Lock
+    pthread_mutex_lock(&queue->mutex);
     if (queue_empty(queue)){
+        // Release Lock upon return
+        pthread_mutex_unlock(&queue->mutex); 
         return 0;
     }
 
@@ -62,5 +76,7 @@ int dequeue(JobQueue *queue, Job *job){
     queue->front = (queue->front + 1) % MAX_QUEUE_SIZE;
     queue->count--;
 
+    // Release Lock upon return
+    pthread_mutex_unlock(&queue->mutex); 
     return 1;
 }

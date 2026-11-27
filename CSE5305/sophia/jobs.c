@@ -23,7 +23,7 @@ void execute_job(Job *job){
         result += (i * i) % 97;
     }
 
-    (void)result; // prevent compiler optimizations (???)
+    (void)result; // Explicitly mark result as "used" so the compiler cannot remove the computation loop as dead code.
 }
 
 

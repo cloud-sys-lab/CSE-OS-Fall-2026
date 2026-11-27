@@ -26,17 +26,18 @@ void *worker_thread(void *arg){
         // Attempt to retrieve the next available job from the shared queue
         if (dequeue(queue, &job)){
             // Print confirmation that the worker thread has successfully been created
-            printf("Worker %d started Job %d (size=%d)\n", worker_id, job.job_id, job.work_size);
+            printf("Worker %d started Job %d (size = %d)\n", worker_id, job.job_id, job.work_size);
 
             // Perform  CPU work associated with current job
             execute_job(&job);
 
-            printf("Worker %d completed Job %d\n", worker_id, job.job_id);
+            printf("Worker %d COMPLETED Job %d\n", worker_id, job.job_id);
         }
         
         else{
             // No job currently available
             //  - Sleep briefly before retrying; reduces CPU usage instead of continuously checking the queue
+            printf("Worker %d found no work. Sleeping...\n", worker_id);
             usleep(1000);
         }
     }

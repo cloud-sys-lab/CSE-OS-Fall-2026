@@ -33,10 +33,12 @@ The whole public API is in `include/uthread.h`:
 
 ```c
 scheduler_t *uthread_init(policy_t policy, int quantum_ms);
+void uthread_destroy(scheduler_t *s);
 int  uthread_create(scheduler_t *s, void (*fn)(void *), void *arg, const uthread_attr_t *attr);
 void uthread_yield(void);
 void uthread_sleep(int ms);
 void uthread_run(scheduler_t *s);
+int  uthread_core_id(void);
 
 int  uthread_get_stats(scheduler_t *s, int tid, uthread_stats_t *out);
 long uthread_context_switches(scheduler_t *s);
@@ -51,13 +53,16 @@ scheduler_t *s = uthread_init(POLICY_STCF, 10);
 uthread_create(s, work, "a", NULL);
 uthread_create(s, work, "b", &short_job);
 uthread_run(s);
+uthread_destroy(s);
 ```
 
-`uthread_init` picks the policy and the length of a time slice, and returns a scheduler. `uthread_create` adds a thread to it, which ends when its function returns. `uthread_run` runs everything and returns once all the threads are done.
+`uthread_init` picks the policy and the length of a time slice, and returns a scheduler. `uthread_create` adds a thread to it, which ends when its function returns. `uthread_run` runs everything and returns once all the threads are done, and `uthread_destroy` frees the scheduler afterward.
 
 `uthread_attr_t` has two optional settings. `expected_ms` is how much CPU time a thread is expected to need; only SJF and STCF use it. `start_delay_ms` holds a thread back for that long before it becomes ready, which is how the benchmarks simulate jobs arriving at different times. Passing `NULL` means no estimate and no delay.
 
 After a run, `uthread_get_stats` gives each thread's arrival time, first run, finish time, and CPU time used, and `uthread_context_switches` gives the total number of switches.
+
+To use more than one core, call `uthread_run` on the same scheduler from several pthreads. Each pthread acts as a core, and they all pull from the same ready threads. `uthread_core_id` tells a thread which core it's running on. Multi-core needs Linux (see [Multi-core](#multi-core)).
 
 
 ## Project layout
@@ -69,7 +74,7 @@ src/uthread.c             the runtime: threads, switching, timer, sleep
 src/queue.c               FIFO queue
 src/heap.c                min-heap used by SJF and STCF
 src/policies/             one file per scheduling policy
-src/multi_core/           multi-core support (in progress, not built yet)
+src/multi_core/           early multi-core wrapper, unused (see Multi-core)
 bench/bench.c             benchmark program
 tests/                    one program per test
 ```
@@ -94,11 +99,13 @@ Each thread has a thread control block (`tcb_t`) holding its saved CPU context, 
 
 ### Switching between threads
 
-Switching uses `swapcontext`, which saves the current registers and stack pointer for one thread and loads another's. It's ordinary user-space code, not a system call, so the kernel never sees the switch. All switching goes through one function, `schedule()`, which asks the policy who's next and switches to them.
+Switching uses `swapcontext`, which saves the current registers and stack pointer for one thread and loads another's. It's ordinary user-space code, not a system call, so the kernel never sees the switch.
+
+Threads never switch directly to each other. Each core has a scheduler loop with its own saved context, and a thread that yields, sleeps, finishes, or gets preempted switches back to that loop. The loop files the thread away (back in the ready queue, into the sleeping list, or done), asks the policy who's next, and switches to them. It's the same idea as a kernel running its scheduler between processes, and it keeps every scheduling decision in one place.
 
 ### Preemption
 
-Each scheduler asks the kernel to send a `SIGALRM` every quantum to the kernel thread it runs on. On Linux that's a per-thread timer from `timer_create`. macOS doesn't have those, so there we fall back to `setitimer`, which is a single timer for the whole process. That's fine with one scheduler, but it's why multi-core needs Linux. The signal handler asks the policy whether the running thread should give up the CPU, and if so, puts it back in the ready queue and calls `schedule()`. When that thread gets picked again later, it picks up exactly where it was interrupted.
+Each core asks the kernel to send a `SIGALRM` every quantum to the pthread it runs on. On Linux that's a per-thread timer from `timer_create`. macOS doesn't have those, so there we fall back to `setitimer`, which is a single timer for the whole process. That's fine with one core, but it's why multi-core needs Linux. The signal handler asks the policy whether the running thread should give up the CPU, and if so, switches back to the scheduler loop. When that thread gets picked again later, it picks up exactly where it was interrupted.
 
 Since the timer can fire at any moment, including in the middle of the library's own code, the library blocks the signal while it's changing its queues and unblocks it afterward. A blocked signal isn't lost, just delayed until it's safe.
 
@@ -108,17 +115,20 @@ The runtime handles everything that works the same no matter which scheduler is 
 
 ```c
 typedef struct {
-    void   (*enqueue)(void *instance, tcb_t *t);
-    tcb_t *(*pick_next)(void *instance);
-    int    (*should_preempt)(void *instance, tcb_t *running);
+    void   (*enqueue)(void *state, tcb_t *t);
+    tcb_t *(*pick_next)(void *state);
+    int    (*should_preempt)(void *state, tcb_t *running);
     void  *(*init)(int quantum_ms);
-    void  *instance;
+    void   (*destroy)(void *state);
 } sched_policy_t;
 ```
 
-`init` creates an instance holding that policy's ready threads, and the other functions get it passed in, the same way a method gets `this`. Each policy can use whatever data structure fits: a FIFO queue for FCFS and RR, a min-heap for SJF and STCF, and several queues for MLFQ.
+`init` creates the policy's state, which holds its ready threads, and the other functions get it passed in, the same way a method gets `this`. `destroy` frees it. Each policy can use whatever data structure fits: a FIFO queue for FCFS and RR, a min-heap for SJF and STCF, and several queues for MLFQ.
 
-All of the runtime's own state (the running thread, the sleeping list, the timer, the stats) lives in a `scheduler_t` rather than in globals. That's what makes it possible to run more than one scheduler at once, one per core.
+The runtime keeps no globals. Its state is split in two:
+
+- `scheduler_t` holds what's shared: the policy and its state, every thread, the sleeping list, the stats, and a lock.
+- `core_t` holds what belongs to one core: the thread it's running, its scheduler loop's context, and its timer. Each pthread that calls `uthread_run` gets its own.
 
 ### Sleeping
 
@@ -128,9 +138,16 @@ Sleeping threads go into a list kept by the runtime rather than the policy, sinc
 
 When a thread stops running, the runtime charges it for the CPU time it used, measured with the kernel thread's own CPU clock. STCF uses this to know how much time each thread has left, and MLFQ uses it to decide when a thread has used up its time on a level.
 
-### Multi-core (in progress)
+### Multi-core
 
-The goal is to run several schedulers at once, each on its own pthread standing in for a CPU core. Two setups are planned: global scheduling, where every core pulls from one shared ready queue protected by a lock, and partitioned scheduling, where each core has its own scheduler and its own threads. The runtime already supports this (per-scheduler state, a per-thread timer, and an optional lock around the policy), but `src/multi_core/` is still a stub and isn't part of the build yet.
+Each pthread that calls `uthread_run` acts as one CPU core, with its own scheduler loop and its own timer. Two setups work:
+
+- **Global scheduling.** Several pthreads call `uthread_run` on the same scheduler. They all pull from one shared ready queue, so a thread can run on a different core each time it's picked. The scheduler's lock is held whenever a core touches the queue or the sleeping list.
+- **Partitioned scheduling.** Each pthread creates and runs its own scheduler, possibly with a different policy. Threads never move between cores, and the cores share nothing.
+
+This needs a separate timer for each core, which only Linux has. On macOS all the cores would share one process-wide timer, and when one core finished and turned it off, the others would stop getting ticks. So `test_multicore` skips itself on macOS.
+
+`src/multi_core/` holds an earlier attempt at a separate multi-core API. Nothing uses it, since calling `uthread_run` from several pthreads turned out to be all that's needed.
 
 
 ## The policies
@@ -164,6 +181,7 @@ The goal is to run several schedulers at once, each on its own pthread standing 
 | `test_sjf` | Shortest job runs first, ties in arrival order |
 | `test_stcf` | A short job arriving late preempts a long one, unless the long one is nearly done |
 | `test_mlfq` | A new job runs ahead of a CPU-bound thread that's already been moved down |
+| `test_multicore` | Four cores, both partitioned and global, with sleeping, yielding, and a thread created mid-run. Partitioned threads must stay on their own core. Linux only. |
 
 
 ## Benchmarks

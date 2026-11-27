@@ -7,6 +7,8 @@
 // Maximum number of jobs that can be stored in the queue
 #define MAX_QUEUE_SIZE 100
 //----------------------------------------------------------
+// CV-Version
+//----------------------------------------------------------
 
 // JobQueue Data Structure
 /* Circular Job Queue:
@@ -15,7 +17,7 @@
         - If the queue becomes full, enqueue() fails and returns 0. */
 
 typedef struct {
-    Job jobs[MAX_QUEUE_SIZE];
+    Job jobs[MAX_QUEUE_SIZE]; // Fixed-size array storing queued jobs
 
     int front; // Index of next job to remove
     int rear; // Index of next position to insert
@@ -24,7 +26,9 @@ typedef struct {
     // Mutex Lock: Protects shared queue data from concurrent access by multiple threads
     pthread_mutex_t mutex;
 
-    // Conditional Variable: Forces threads to wait until CV signals when a job is availible
+    // Condition Variable:
+    //  - Worker threads wait here when queue is empty
+    //  - enqueue() signals this condition whenever new work becomes available
     pthread_cond_t jobs_available;
 
 } JobQueue;
@@ -52,7 +56,8 @@ int queue_empty(JobQueue *queue);
 // Checks if queue is full: Returns 1 if queue is full
 int queue_full(JobQueue *queue);
 
-// Remove a job assuming the caller already owns the queue mutex (temp helper)
+// Remove a job while assuming the caller already holds the queue mutex
+// Used by worker threads after waking from the condition variable
 int dequeue_locked(JobQueue *queue, Job *job);
 
 #endif

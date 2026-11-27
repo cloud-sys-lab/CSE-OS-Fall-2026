@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include "jobs.h"
 //----------------------------------------------------------
-
+// SEMAPHORE-Version
+//----------------------------------------------------------
 // Create/initialize a new Job structure with a unique ID and amount of work to perform
 Job create_job(int job_id, int work_size){
     Job job;
@@ -13,7 +14,6 @@ Job create_job(int job_id, int work_size){
 }
 
 //----------------------------------------------------------
-
 // Simulates computational (CPU-bound) work via a loop and without using I/O
 //  - The larger the work_size value, the longer the worker thread spends processing the job (more CPU time)
 void execute_job(Job *job){

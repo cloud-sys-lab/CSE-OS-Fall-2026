@@ -1,7 +1,5 @@
 #define _GNU_SOURCE
 #include <pthread.h>
-#include <sched.h>
-#include <stdatomic.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -20,13 +18,7 @@
 
 #define STACK_SIZE (64 * 1024)
 
-static _Thread_local scheduler_t *current_sched;
-static atomic_int active_cores;
-
-static __attribute__((noinline)) scheduler_t *this_sched(void)
-{
-    return current_sched;
-}
+static _Thread_local core_t *current_core;
 
 static void preempt_disable(void)
 {
@@ -51,7 +43,7 @@ static long now_ms(void)
     return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
 }
 
-static long now_real_us(void)
+long now_mono_us(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -77,7 +69,7 @@ static void wake_sleepers(scheduler_t *scheduler)
         {
             scheduler->sleeping[i] = scheduler->sleeping[--scheduler->sleeping_count];
             t->state = READY;
-            scheduler->policy->enqueue(scheduler->policy->instance, t);
+            scheduler->policy->enqueue(scheduler->policy_state, t);
         }
         else
         {
@@ -86,146 +78,109 @@ static void wake_sleepers(scheduler_t *scheduler)
     }
 }
 
-static void charge_running(scheduler_t *scheduler)
+static void charge_running(core_t *core)
 {
-    long used = now_us() - scheduler->running->dispatched_at;
-    scheduler->running->remaining_us -= used;
-    scheduler->stats[scheduler->running->tid].cpu_us += used;
-    scheduler->running->level_used_us += used;
-    if (scheduler->running->remaining_us < 0)
-        scheduler->running->remaining_us = 0; // overran its estimate
+    tcb_t *t = core->running;
+    long used = now_us() - t->dispatched_at;
+    t->remaining_us -= used;
+    core->scheduler->stats[t->tid].cpu_us += used;
+    t->level_used_us += used;
+    if (t->remaining_us < 0)
+        t->remaining_us = 0; // overran its estimate
 }
 
-static void arm_timer(scheduler_t *scheduler)
+static void arm_timer(core_t *core)
 {
+    int q = core->scheduler->quantum_ms;
 #ifdef __linux__
-    if (!scheduler->timer_created)
+    if (!core->timer_created)
     {
         struct sigevent sev;
         memset(&sev, 0, sizeof sev);
         sev.sigev_notify = SIGEV_THREAD_ID;
         sev.sigev_signo = SIGALRM;
-        sev.sigev_value.sival_ptr = scheduler;
         sev.sigev_notify_thread_id = (pid_t)syscall(SYS_gettid);
-        timer_create(CLOCK_MONOTONIC, &sev, &scheduler->timer);
-        scheduler->timer_created = 1;
+        if (timer_create(CLOCK_MONOTONIC, &sev, &core->timer) != 0)
+            return;
+        core->timer_created = 1;
     }
     struct itimerspec its = {0};
-    its.it_interval.tv_sec = scheduler->quantum_ms / 1000;
-    its.it_interval.tv_nsec = (scheduler->quantum_ms % 1000) * 1000000L;
+    its.it_interval.tv_sec = q / 1000;
+    its.it_interval.tv_nsec = (q % 1000) * 1000000L;
     its.it_value = its.it_interval;
-    timer_settime(scheduler->timer, 0, &its, NULL);
+    timer_settime(core->timer, 0, &its, NULL);
 #else
+    // no per-thread timers outside Linux: fall back to the process-wide
+    // ITIMER_REAL (best effort when more than one core is running)
     struct itimerval tv = {0};
-    tv.it_interval.tv_sec = scheduler->quantum_ms / 1000;
-    tv.it_interval.tv_usec = (scheduler->quantum_ms % 1000) * 1000;
+    tv.it_interval.tv_sec = q / 1000;
+    tv.it_interval.tv_usec = (q % 1000) * 1000;
     tv.it_value = tv.it_interval;
     setitimer(ITIMER_REAL, &tv, NULL);
+    core->timer_created = 1;
 #endif
 }
 
-static void dispatch(scheduler_t *scheduler, tcb_t *t)
+static void destroy_timer(core_t *core)
 {
-    scheduler->running = t;
-    t->state = RUNNING;
-    t->dispatched_at = now_us();
-    if (scheduler->stats[t->tid].first_run_us == 0)
-        scheduler->stats[t->tid].first_run_us = now_real_us();
-    if (t != scheduler->last_dispatched)
-        scheduler->switch_count++;
-    scheduler->last_dispatched = t;
-    arm_timer(scheduler);
+    if (!core->timer_created)
+        return;
+#ifdef __linux__
+    struct itimerspec its = {0};
+    timer_settime(core->timer, 0, &its, NULL);
+    timer_delete(core->timer);
+#else
+    struct itimerval tv = {0};
+    setitimer(ITIMER_REAL, &tv, NULL);
+#endif
+    core->timer_created = 0;
 }
 
-static void schedule(scheduler_t *scheduler)
+static void dispatch(core_t *core, tcb_t *t)
 {
-    tcb_t *prev = scheduler->running;
+    core->running = t;
+    t->state = RUNNING;
+    t->dispatched_at = now_us();
+    arm_timer(core);
+}
 
-    if (scheduler->policyAccessLock)
-        pthread_mutex_lock(scheduler->policyAccessLock);
-
-    if (prev->state == READY)
-        scheduler->policy->enqueue(scheduler->policy->instance, prev);
-
-    wake_sleepers(scheduler);
-    tcb_t *next = scheduler->policy->pick_next(scheduler->policy->instance);
-
-    while (next == NULL && scheduler->sleeping_count > 0)
-    {
-        sigset_t none;
-        sigemptyset(&none);
-        scheduler->running = NULL;
-        if (scheduler->policyAccessLock)
-            pthread_mutex_unlock(scheduler->policyAccessLock);
-        sigsuspend(&none);
-        if (scheduler->policyAccessLock)
-            pthread_mutex_lock(scheduler->policyAccessLock);
-        next = scheduler->policy->pick_next(scheduler->policy->instance);
-    }
-
-    if (next == NULL)
-    {
-        scheduler->running = NULL;
-        if (scheduler->policyAccessLock)
-            pthread_mutex_unlock(scheduler->policyAccessLock);
-        swapcontext(&prev->ctx, &scheduler->main_ctx);
-        return;
-    }
-
-    dispatch(scheduler, next);
-    if (next == prev)
-    {
-        if (scheduler->policyAccessLock)
-            pthread_mutex_unlock(scheduler->policyAccessLock);
-        return;
-    }
-
-    swapcontext(&prev->ctx, &next->ctx);
-    if (scheduler->policyAccessLock)
-        pthread_mutex_unlock(scheduler->policyAccessLock);
+static void switch_to_core(tstate_t state)
+{
+    core_t *core = current_core;
+    tcb_t *t = core->running;
+    charge_running(core);
+    t->state = state;
+    swapcontext(&t->ctx, &core->sched_ctx);
 }
 
 static void thread_start(void)
 {
-    scheduler_t *scheduler = this_sched();
-    if (scheduler->policyAccessLock)
-        pthread_mutex_unlock(scheduler->policyAccessLock);
     preempt_enable();
-
-    scheduler->running->fn(scheduler->running->arg);
+    tcb_t *self = current_core->running;
+    self->fn(self->arg);
     preempt_disable();
-    scheduler = this_sched();
-    charge_running(scheduler);
-    scheduler->stats[scheduler->running->tid].finished_us = now_real_us();
-    scheduler->running->state = DONE;
-    schedule(scheduler);
+    current_core->scheduler->stats[self->tid].finished_us = now_mono_us();
+    switch_to_core(DONE);
 }
 
 static void on_timer(int sig, siginfo_t *info, void *ucontext)
 {
-#ifdef __linux__
-    scheduler_t *scheduler = info->si_value.sival_ptr;
-#else
-    scheduler_t *scheduler = current_sched;
-#endif
-    if (scheduler == NULL)
+    (void)sig;
+    (void)info;
+    (void)ucontext;
+
+    core_t *core = current_core;
+    if (core == NULL || core->running == NULL)
         return;
 
-    if (scheduler->policyAccessLock)
-        pthread_mutex_lock(scheduler->policyAccessLock);
+    scheduler_t *scheduler = core->scheduler;
+    pthread_mutex_lock(&scheduler->lock);
     wake_sleepers(scheduler);
-    int preempt = scheduler->running != NULL &&
-                  scheduler->policy->should_preempt(scheduler->policy->instance, scheduler->running);
-    if (preempt)
-    {
-        charge_running(scheduler);
-        scheduler->running->state = READY;
-    }
-    if (scheduler->policyAccessLock)
-        pthread_mutex_unlock(scheduler->policyAccessLock);
+    int preempt = scheduler->policy->should_preempt(scheduler->policy_state, core->running);
+    pthread_mutex_unlock(&scheduler->lock);
 
     if (preempt)
-        schedule(scheduler);
+        switch_to_core(READY);
 }
 
 static void install_timer_handler(void)
@@ -237,20 +192,16 @@ static void install_timer_handler(void)
     sigaction(SIGALRM, &sa, NULL);
 }
 
-static void stop_timer(scheduler_t *scheduler)
+static void free_threads(scheduler_t *scheduler)
 {
-#ifdef __linux__
-    struct itimerspec its = {0};
-    timer_settime(scheduler->timer, 0, &its, NULL);
-#else
-    struct itimerval tv = {0};
-    setitimer(ITIMER_REAL, &tv, NULL);
-#endif
-}
-
-void uthread_set_policy_lock(scheduler_t *scheduler, pthread_mutex_t *lock)
-{
-    scheduler->policyAccessLock = lock;
+    for (int i = 0; i < scheduler->thread_count; i++)
+    {
+        free(scheduler->threads[i]->stack);
+        free(scheduler->threads[i]);
+    }
+    scheduler->thread_count = 0;
+    scheduler->live_threads = 0;
+    scheduler->sleeping_count = 0;
 }
 
 scheduler_t *uthread_init(policy_t which, int q)
@@ -284,38 +235,54 @@ scheduler_t *uthread_init(policy_t which, int q)
         return NULL;
     }
     scheduler->quantum_ms = q;
-    scheduler->policyAccessLock = NULL;
-    if (scheduler->policy->init)
-        scheduler->policy->instance = scheduler->policy->init(q);
+    scheduler->policy_state = scheduler->policy->init(q);
+    if (scheduler->policy_state == NULL)
+    {
+        free(scheduler);
+        return NULL;
+    }
+    pthread_mutex_init(&scheduler->lock, NULL);
     return scheduler;
+}
+
+void uthread_destroy(scheduler_t *scheduler)
+{
+    if (scheduler == NULL)
+        return;
+    pthread_mutex_lock(&scheduler->lock);
+    int busy = scheduler->active_cores > 0;
+    pthread_mutex_unlock(&scheduler->lock);
+    if (busy)
+        return;
+
+    free_threads(scheduler);
+    scheduler->policy->destroy(scheduler->policy_state);
+    pthread_mutex_destroy(&scheduler->lock);
+    free(scheduler);
 }
 
 int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const uthread_attr_t *attr)
 {
-    if (scheduler == NULL || scheduler->policy == NULL || scheduler->thread_count == MAX_THREADS)
+    if (scheduler == NULL || fn == NULL)
         return -1;
 
     preempt_disable();
 
     tcb_t *t = calloc(1, sizeof *t);
-    if (t == NULL)
-    {
-        preempt_enable();
-        return -1;
-    }
-    t->stack = malloc(STACK_SIZE);
-    if (t->stack == NULL)
+    void *stack = t ? malloc(STACK_SIZE) : NULL;
+    if (stack == NULL)
     {
         free(t);
         preempt_enable();
         return -1;
     }
 
-    t->tid = scheduler->thread_count;
+    t->stack = stack;
     t->fn = fn;
     t->arg = arg;
     t->expected_ms = attr ? attr->expected_ms : 0;
     t->remaining_us = (long)t->expected_ms * 1000;
+    t->state = READY;
 
     getcontext(&t->ctx);
     t->ctx.uc_stack.ss_sp = t->stack;
@@ -323,29 +290,37 @@ int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const 
     t->ctx.uc_link = NULL;
     makecontext(&t->ctx, thread_start, 0);
 
+    pthread_mutex_lock(&scheduler->lock);
+    if (scheduler->thread_count == MAX_THREADS)
+    {
+        pthread_mutex_unlock(&scheduler->lock);
+        free(t->stack);
+        free(t);
+        preempt_enable();
+        return -1;
+    }
+    t->tid = scheduler->thread_count;
+    scheduler->threads[scheduler->thread_count++] = t;
+    scheduler->live_threads++;
+
     int delay = attr ? attr->start_delay_ms : 0;
     memset(&scheduler->stats[t->tid], 0, sizeof scheduler->stats[t->tid]);
-    scheduler->stats[t->tid].arrived_us = now_real_us() + delay * 1000L;
+    scheduler->stats[t->tid].arrived_us = now_mono_us() + delay * 1000L;
     if (t->tid >= scheduler->stats_count)
         scheduler->stats_count = t->tid + 1;
 
-    scheduler->threads[scheduler->thread_count++] = t;
-
     if (delay > 0)
     {
+        // delayed arrival: park it with the sleepers until its start time
         t->state = BLOCKED;
         t->wake_at = now_ms() + delay;
         scheduler->sleeping[scheduler->sleeping_count++] = t;
-        preempt_enable();
-        return t->tid;
     }
-
-    t->state = READY;
-    if (scheduler->policyAccessLock)
-        pthread_mutex_lock(scheduler->policyAccessLock);
-    scheduler->policy->enqueue(scheduler->policy->instance, t);
-    if (scheduler->policyAccessLock)
-        pthread_mutex_unlock(scheduler->policyAccessLock);
+    else
+    {
+        scheduler->policy->enqueue(scheduler->policy_state, t);
+    }
+    pthread_mutex_unlock(&scheduler->lock);
 
     preempt_enable();
     return t->tid;
@@ -353,100 +328,111 @@ int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const 
 
 void uthread_yield(void)
 {
-    scheduler_t *scheduler = current_sched;
-    if (scheduler == NULL || scheduler->running == NULL)
-        return;
-
     preempt_disable();
-    charge_running(scheduler);
-    scheduler->running->state = READY;
-    schedule(scheduler);
+    core_t *core = current_core;
+    if (core != NULL && core->running != NULL)
+        switch_to_core(READY);
     preempt_enable();
 }
 
 void uthread_sleep(int ms)
 {
-    scheduler_t *scheduler = current_sched;
-    if (scheduler == NULL || scheduler->running == NULL)
-        return;
-
     preempt_disable();
-    charge_running(scheduler);
-    scheduler->running->state = BLOCKED;
-    scheduler->running->wake_at = now_ms() + ms;
-    scheduler->sleeping[scheduler->sleeping_count++] = scheduler->running;
-    schedule(scheduler);
+    core_t *core = current_core;
+    if (core != NULL && core->running != NULL)
+    {
+        core->running->wake_at = now_ms() + ms;
+        switch_to_core(BLOCKED);
+    }
     preempt_enable();
+}
+
+int uthread_core_id(void)
+{
+    core_t *core = current_core;
+    return core ? core->id : -1;
 }
 
 void uthread_run(scheduler_t *scheduler)
 {
-    current_sched = scheduler;
-    atomic_fetch_add(&active_cores, 1);
-    preempt_disable();
+    if (scheduler == NULL || current_core != NULL)
+        return;
 
-    scheduler->switch_count = 0;
-    scheduler->last_dispatched = NULL;
+    sigset_t alrm, saved_mask, idle_mask;
+    sigemptyset(&alrm);
+    sigaddset(&alrm, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &alrm, &saved_mask);
+    idle_mask = saved_mask;
+    sigdelset(&idle_mask, SIGALRM);
+
     install_timer_handler();
 
-    if (scheduler->policyAccessLock)
-        pthread_mutex_lock(scheduler->policyAccessLock);
-    tcb_t *first = scheduler->policy->pick_next(scheduler->policy->instance);
+    core_t core;
+    memset(&core, 0, sizeof core);
+    core.scheduler = scheduler;
 
-    if (first == NULL && scheduler->sleeping_count > 0)
+    pthread_mutex_lock(&scheduler->lock);
+    if (scheduler->active_cores++ == 0)
+        scheduler->switch_count = 0;
+    core.id = scheduler->next_core_id++;
+    current_core = &core;
+
+    for (;;)
     {
-        arm_timer(scheduler);
-        while (first == NULL && scheduler->sleeping_count > 0)
+        wake_sleepers(scheduler);
+        tcb_t *t = scheduler->policy->pick_next(scheduler->policy_state);
+
+        if (t != NULL)
         {
-            sigset_t none;
-            sigemptyset(&none);
-            if (scheduler->policyAccessLock)
-                pthread_mutex_unlock(scheduler->policyAccessLock);
-            sigsuspend(&none);
-            if (scheduler->policyAccessLock)
-                pthread_mutex_lock(scheduler->policyAccessLock);
-            wake_sleepers(scheduler);
-            first = scheduler->policy->pick_next(scheduler->policy->instance);
+            if (scheduler->stats[t->tid].first_run_us == 0)
+                scheduler->stats[t->tid].first_run_us = now_mono_us();
+            if (t != core.last_dispatched)
+                scheduler->switch_count++;
+            core.last_dispatched = t;
+            pthread_mutex_unlock(&scheduler->lock);
+            dispatch(&core, t);
+            swapcontext(&core.sched_ctx, &t->ctx);
+            pthread_mutex_lock(&scheduler->lock);
+            core.running = NULL;
+
+            switch (t->state)
+            {
+            case READY:
+                scheduler->policy->enqueue(scheduler->policy_state, t);
+                break;
+            case BLOCKED:
+                scheduler->sleeping[scheduler->sleeping_count++] = t;
+                break;
+            case DONE:
+                scheduler->live_threads--;
+                break;
+            default:
+                break;
+            }
+            continue;
         }
-        if (first == NULL)
-            stop_timer(scheduler);
+
+        if (scheduler->live_threads == 0)
+            break;
+
+        if (!core.timer_created)
+            arm_timer(&core);
+        pthread_mutex_unlock(&scheduler->lock);
+        sigsuspend(&idle_mask);
+        pthread_mutex_lock(&scheduler->lock);
     }
 
-    if (first != NULL)
-    {
-        dispatch(scheduler, first);
-        swapcontext(&(scheduler->main_ctx), &(scheduler->running->ctx));
-        stop_timer(scheduler);
-    }
-    else if (scheduler->policyAccessLock)
-    {
-        pthread_mutex_unlock(scheduler->policyAccessLock);
-    }
+    if (--scheduler->active_cores == 0)
+        free_threads(scheduler);
+    pthread_mutex_unlock(&scheduler->lock);
 
-#ifdef __linux__
-    if (scheduler->timer_created)
-    {
-        timer_delete(scheduler->timer);
-        scheduler->timer_created = 0;
-    }
-#endif
+    destroy_timer(&core);
+    current_core = NULL;
 
-    atomic_fetch_sub(&active_cores, 1);
-    if (scheduler->policyAccessLock)
-    {
-        while (atomic_load(&active_cores) > 0)
-            sched_yield();
-    }
-
-    for (int i = 0; i < scheduler->thread_count; i++)
-    {
-        free(scheduler->threads[i]->stack);
-        free(scheduler->threads[i]);
-    }
-    scheduler->thread_count = 0;
-
-    current_sched = NULL;
-    preempt_enable();
+    struct timespec zero = {0, 0};
+    while (sigtimedwait(&alrm, NULL, &zero) > 0)
+        ;
+    pthread_sigmask(SIG_SETMASK, &saved_mask, NULL);
 }
 
 int uthread_get_stats(scheduler_t *scheduler, int tid, uthread_stats_t *out)

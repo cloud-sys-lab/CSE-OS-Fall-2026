@@ -45,6 +45,7 @@ static int run(policy_t p, int long_expected_ms, const char *expected, const cha
     scheduler_t *scheduler = uthread_init(p, 10);
     uthread_create(scheduler, long_job, scheduler, &long_attr);
     uthread_run(scheduler);
+    uthread_destroy(scheduler);
     order[pos] = '\0';
 
     printf("%s: order %s (expected %s)\n", label, order, expected);

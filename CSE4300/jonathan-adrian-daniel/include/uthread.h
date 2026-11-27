@@ -1,10 +1,9 @@
 #ifndef UTHREAD_H
 #define UTHREAD_H
 
-//extern def, included here for public calls, users do not need to know what a scheduler object is, however
+//extern def, included here for public calls, users do not need to know what a scheduler object is
 struct scheduler;
 typedef struct scheduler scheduler_t;
-
 
 typedef enum {
     POLICY_FCFS,
@@ -26,9 +25,9 @@ typedef struct {
     long cpu_us;
 } uthread_stats_t;
 
-
-
 scheduler_t *uthread_init(policy_t policy, int quantum_ms);
+
+void uthread_destroy(scheduler_t *scheduler);
 
 int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const uthread_attr_t *attr);
 
@@ -38,13 +37,10 @@ void uthread_sleep(int ms);
 
 void uthread_run(scheduler_t *scheduler);
 
+int uthread_core_id(void);
+
 int uthread_get_stats(scheduler_t *scheduler, int tid, uthread_stats_t *out);
 
 long uthread_context_switches(scheduler_t *scheduler);
 
-#endif
-
-#ifdef MULTITHREAD_H
-#include <pthread.h>
-void uthread_set_policy_lock(scheduler_t *scheduler, pthread_mutex_t *lock);
 #endif

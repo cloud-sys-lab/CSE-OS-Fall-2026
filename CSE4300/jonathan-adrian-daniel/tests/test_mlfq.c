@@ -50,6 +50,7 @@ static int run(policy_t p)
     scheduler_t *scheduler = uthread_init(p, 10);
     uthread_create(scheduler, hog, scheduler, NULL);
     uthread_run(scheduler);
+    uthread_destroy(scheduler);
     order[pos] = '\0';
     return a_ran_during_b;
 }

@@ -12,6 +12,7 @@ int main(void)
     uthread_create(scheduler,worker, "A", NULL);
     uthread_create(scheduler, worker, "B", NULL);
     uthread_run(scheduler);
+    uthread_destroy(scheduler);
     printf("all threads finished\n");
     return 0;
 }

@@ -1,4 +1,4 @@
-#include "multiCore.h"
+#include "multi_core.h"
 #include "multiCore_internal.h"
 #include "uthread.h"
 #include "uthread_internal.h"
@@ -15,7 +15,8 @@ int initialize_multi_core(policy_m_t policy, int numcores, policy_t associatedPo
         case POLICY_GLOBAL:
             selectedPolicy = policy;
             locks = malloc(1 * sizeof(pthread_mutex_t));
-            pthread_mutex_init(&locks[0], NULL); 
+            pthread_mutex_init(&locks[0], NULL);
+            break;
         default:
             return -1;
     }
@@ -26,7 +27,7 @@ int initialize_multi_core(policy_m_t policy, int numcores, policy_t associatedPo
 
 void coreRun(){
     //Starts the core's scheduler based on the selected policy.
-    
+
 }
 
 int setCorePolicy(int coreID, policy_t newPolicy){

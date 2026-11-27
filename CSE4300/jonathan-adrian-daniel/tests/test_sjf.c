@@ -26,6 +26,7 @@ int main(void)
     uthread_create(scheduler, worker, "A", &short_job);
     uthread_create(scheduler, worker, "D", &tie_job);
     uthread_run(scheduler);
+    uthread_destroy(scheduler);
 
     order[pos] = '\0';
     printf("order: %s\n", order);

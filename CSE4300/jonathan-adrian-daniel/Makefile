@@ -1,11 +1,13 @@
 CC = cc
-CFLAGS = -std=c11 -Wall -g -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE \
+CFLAGS = -g -std=c11 -Wall -pthread -D_XOPEN_SOURCE=600 -D_DARWIN_C_SOURCE \
          -Wno-deprecated-declarations -Iinclude -Isrc
 
-SRC = src/uthread.c src/queue.c src/heap.c $(wildcard src/policies/*.c)
+SRC = src/uthread.c src/queue.c src/heap.c $(wildcard src/policies/*.c) $(wildcard src/multi_core/*.c)
 OBJ = $(SRC:%.c=build/%.o)
 TESTS = $(patsubst %.c,build/%,$(wildcard tests/*.c))
 BENCH = build/bench/bench
+HEADERS = include/uthread.h include/multi_core.h src/uthread_internal.h src/queue.h src/heap.h \
+          src/multi_core/multiCore_internal.h
 
 all: $(TESTS)
 
@@ -17,7 +19,7 @@ $(BENCH): bench/bench.c $(OBJ)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -O2 $^ -o $@ -lm
 
-build/%.o: %.c include/uthread.h src/uthread_internal.h src/queue.h src/heap.h
+build/%.o: %.c $(HEADERS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 

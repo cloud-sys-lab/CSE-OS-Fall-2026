@@ -218,6 +218,7 @@ static result_t run_once(const workload_t *w, policy_t p, int quantum)
     r.response /= w->njobs;
     r.wait /= w->njobs;
     r.switches = uthread_context_switches(s);
+    uthread_destroy(s);
     r.wake_latency = wakes > 0 ? latency / 1000.0 / wakes : -1;
     return r;
 }

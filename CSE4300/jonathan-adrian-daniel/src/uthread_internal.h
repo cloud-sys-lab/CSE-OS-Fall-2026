@@ -36,45 +36,55 @@ typedef struct tcb
 
 typedef struct
 {
-    void (*enqueue)(void* instance, tcb_t *t);
-    tcb_t *(*pick_next)(void* instance);
-    int (*should_preempt)(void* instance, tcb_t *running);
-    void* (*init)(int quantum_ms);
-    void* instance;
+    void (*enqueue)(void *state, tcb_t *t);
+    tcb_t *(*pick_next)(void *state);
+    int (*should_preempt)(void *state, tcb_t *running);
+    void *(*init)(int quantum_ms);
+    void (*destroy)(void *state);
 } sched_policy_t;
 
-
-typedef struct scheduler{
-    pthread_mutex_t* policyAccessLock;
-    sched_policy_t *policy;
+typedef struct core
+{
+    struct scheduler *scheduler;
     tcb_t *running;
-    int quantum_ms;
-    ucontext_t main_ctx;
-
-    tcb_t *threads[MAX_THREADS];
-    int thread_count;
-
-    tcb_t *sleeping[MAX_THREADS];
-    int sleeping_count;
-
+    ucontext_t sched_ctx;
 #ifdef __linux__
     timer_t timer;
 #endif
     int timer_created;
+    tcb_t *last_dispatched;
+    int id;
+} core_t;
+
+typedef struct scheduler
+{
+    pthread_mutex_t lock;
+    const sched_policy_t *policy;
+    void *policy_state;
+    int quantum_ms;
+
+    tcb_t *threads[MAX_THREADS];
+    int thread_count;
+    int live_threads;
+
+    tcb_t *sleeping[MAX_THREADS];
+    int sleeping_count;
+
+    int active_cores;
+    int next_core_id;
 
     uthread_stats_t stats[MAX_THREADS];
     int stats_count;
     long switch_count;
-    tcb_t *last_dispatched;
-
-}scheduler_t;
+} scheduler_t;
 
 long now_us(void);
+long now_mono_us(void);
 
-extern sched_policy_t fcfs_policy;
-extern sched_policy_t sjf_policy;
-extern sched_policy_t stcf_policy;
-extern sched_policy_t rr_policy;
-extern sched_policy_t mlfq_policy;
+extern const sched_policy_t fcfs_policy;
+extern const sched_policy_t sjf_policy;
+extern const sched_policy_t stcf_policy;
+extern const sched_policy_t rr_policy;
+extern const sched_policy_t mlfq_policy;
 
 #endif

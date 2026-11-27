@@ -6,14 +6,16 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/syscall.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 #include "uthread_internal.h"
 
+#ifdef __linux__
+#include <sys/syscall.h>
 #ifndef sigev_notify_thread_id
 #define sigev_notify_thread_id _sigev_un._tid
+#endif
 #endif
 
 #define STACK_SIZE (64 * 1024)
@@ -96,6 +98,7 @@ static void charge_running(scheduler_t *scheduler)
 
 static void arm_timer(scheduler_t *scheduler)
 {
+#ifdef __linux__
     if (!scheduler->timer_created)
     {
         struct sigevent sev;
@@ -112,6 +115,13 @@ static void arm_timer(scheduler_t *scheduler)
     its.it_interval.tv_nsec = (scheduler->quantum_ms % 1000) * 1000000L;
     its.it_value = its.it_interval;
     timer_settime(scheduler->timer, 0, &its, NULL);
+#else
+    struct itimerval tv = {0};
+    tv.it_interval.tv_sec = scheduler->quantum_ms / 1000;
+    tv.it_interval.tv_usec = (scheduler->quantum_ms % 1000) * 1000;
+    tv.it_value = tv.it_interval;
+    setitimer(ITIMER_REAL, &tv, NULL);
+#endif
 }
 
 static void dispatch(scheduler_t *scheduler, tcb_t *t)
@@ -193,7 +203,13 @@ static void thread_start(void)
 
 static void on_timer(int sig, siginfo_t *info, void *ucontext)
 {
+#ifdef __linux__
     scheduler_t *scheduler = info->si_value.sival_ptr;
+#else
+    scheduler_t *scheduler = current_sched;
+#endif
+    if (scheduler == NULL)
+        return;
 
     if (scheduler->policyAccessLock)
         pthread_mutex_lock(scheduler->policyAccessLock);
@@ -223,8 +239,13 @@ static void install_timer_handler(void)
 
 static void stop_timer(scheduler_t *scheduler)
 {
+#ifdef __linux__
     struct itimerspec its = {0};
     timer_settime(scheduler->timer, 0, &its, NULL);
+#else
+    struct itimerval tv = {0};
+    setitimer(ITIMER_REAL, &tv, NULL);
+#endif
 }
 
 void uthread_set_policy_lock(scheduler_t *scheduler, pthread_mutex_t *lock)
@@ -402,11 +423,13 @@ void uthread_run(scheduler_t *scheduler)
         pthread_mutex_unlock(scheduler->policyAccessLock);
     }
 
+#ifdef __linux__
     if (scheduler->timer_created)
     {
         timer_delete(scheduler->timer);
         scheduler->timer_created = 0;
     }
+#endif
 
     atomic_fetch_sub(&active_cores, 1);
     if (scheduler->policyAccessLock)

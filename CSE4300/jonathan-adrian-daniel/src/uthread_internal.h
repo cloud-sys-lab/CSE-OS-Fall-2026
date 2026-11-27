@@ -57,7 +57,9 @@ typedef struct scheduler{
     tcb_t *sleeping[MAX_THREADS];
     int sleeping_count;
 
+#ifdef __linux__
     timer_t timer;
+#endif
     int timer_created;
 
     uthread_stats_t stats[MAX_THREADS];

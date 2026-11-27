@@ -22,6 +22,7 @@ Works on macOS and Linux. You need `cc` and `make`.
 ```
 make          # build everything into build/
 make test     # build and run every test in tests/
+make bench    # build and run the benchmarks
 make clean
 ```
 
@@ -31,11 +32,14 @@ make clean
 The whole public API is in `include/uthread.h`:
 
 ```c
-int  uthread_init(policy_t policy, int quantum_ms);
-int  uthread_create(void (*fn)(void *), void *arg, const uthread_attr_t *attr);
+scheduler_t *uthread_init(policy_t policy, int quantum_ms);
+int  uthread_create(scheduler_t *s, void (*fn)(void *), void *arg, const uthread_attr_t *attr);
 void uthread_yield(void);
 void uthread_sleep(int ms);
-void uthread_run(void);
+void uthread_run(scheduler_t *s);
+
+int  uthread_get_stats(scheduler_t *s, int tid, uthread_stats_t *out);
+long uthread_context_switches(scheduler_t *s);
 ```
 
 For example:
@@ -43,15 +47,17 @@ For example:
 ```c
 uthread_attr_t short_job = { .expected_ms = 50 };
 
-uthread_init(POLICY_STCF, 10);
-uthread_create(work, "a", NULL);
-uthread_create(work, "b", &short_job);
-uthread_run();
+scheduler_t *s = uthread_init(POLICY_STCF, 10);
+uthread_create(s, work, "a", NULL);
+uthread_create(s, work, "b", &short_job);
+uthread_run(s);
 ```
 
-`uthread_init` picks the policy and the length of a time slice. `uthread_create` adds a thread, which ends when its function returns. `uthread_run` runs everything and returns once all the threads are done.
+`uthread_init` picks the policy and the length of a time slice, and returns a scheduler. `uthread_create` adds a thread to it, which ends when its function returns. `uthread_run` runs everything and returns once all the threads are done.
 
-`expected_ms` is how much CPU time a thread is expected to need. Only SJF and STCF use it, and passing `NULL` is fine for the others.
+`uthread_attr_t` has two optional settings. `expected_ms` is how much CPU time a thread is expected to need; only SJF and STCF use it. `start_delay_ms` holds a thread back for that long before it becomes ready, which is how the benchmarks simulate jobs arriving at different times. Passing `NULL` means no estimate and no delay.
+
+After a run, `uthread_get_stats` gives each thread's arrival time, first run, finish time, and CPU time used, and `uthread_context_switches` gives the total number of switches.
 
 
 ## Project layout
@@ -63,6 +69,8 @@ src/uthread.c             the runtime: threads, switching, timer, sleep
 src/queue.c               FIFO queue
 src/heap.c                min-heap used by SJF and STCF
 src/policies/             one file per scheduling policy
+src/multi_core/           multi-core support (in progress, not built yet)
+bench/bench.c             benchmark program
 tests/                    one program per test
 ```
 
@@ -90,7 +98,7 @@ Switching uses `swapcontext`, which saves the current registers and stack pointe
 
 ### Preemption
 
-At startup we ask the kernel to send our process a `SIGALRM` every quantum. The signal handler asks the policy whether the running thread should give up the CPU, and if so, puts it back in the ready queue and calls `schedule()`. When that thread gets picked again later, it picks up exactly where it was interrupted.
+Each scheduler asks the kernel to send a `SIGALRM` every quantum to the kernel thread it runs on. On Linux that's a per-thread timer from `timer_create`. macOS doesn't have those, so there we fall back to `setitimer`, which is a single timer for the whole process. That's fine with one scheduler, but it's why multi-core needs Linux. The signal handler asks the policy whether the running thread should give up the CPU, and if so, puts it back in the ready queue and calls `schedule()`. When that thread gets picked again later, it picks up exactly where it was interrupted.
 
 Since the timer can fire at any moment, including in the middle of the library's own code, the library blocks the signal while it's changing its queues and unblocks it afterward. A blocked signal isn't lost, just delayed until it's safe.
 
@@ -100,14 +108,17 @@ The runtime handles everything that works the same no matter which scheduler is 
 
 ```c
 typedef struct {
-    void   (*enqueue)(tcb_t *t);
-    tcb_t *(*pick_next)(void);
-    int    (*should_preempt)(tcb_t *running);
-    void   (*init)(int quantum_ms);
+    void   (*enqueue)(void *instance, tcb_t *t);
+    tcb_t *(*pick_next)(void *instance);
+    int    (*should_preempt)(void *instance, tcb_t *running);
+    void  *(*init)(int quantum_ms);
+    void  *instance;
 } sched_policy_t;
 ```
 
-Each policy keeps its own ready threads privately, so each one can use whatever data structure fits: a FIFO queue for FCFS and RR, a min-heap for SJF and STCF, and several queues for MLFQ.
+`init` creates an instance holding that policy's ready threads, and the other functions get it passed in, the same way a method gets `this`. Each policy can use whatever data structure fits: a FIFO queue for FCFS and RR, a min-heap for SJF and STCF, and several queues for MLFQ.
+
+All of the runtime's own state (the running thread, the sleeping list, the timer, the stats) lives in a `scheduler_t` rather than in globals. That's what makes it possible to run more than one scheduler at once, one per core.
 
 ### Sleeping
 
@@ -115,7 +126,11 @@ Sleeping threads go into a list kept by the runtime rather than the policy, sinc
 
 ### CPU time
 
-When a thread stops running, the runtime charges it for the CPU time it used. STCF uses this to know how much time each thread has left, and MLFQ uses it to decide when a thread has used up its time on a level.
+When a thread stops running, the runtime charges it for the CPU time it used, measured with the kernel thread's own CPU clock. STCF uses this to know how much time each thread has left, and MLFQ uses it to decide when a thread has used up its time on a level.
+
+### Multi-core (in progress)
+
+The goal is to run several schedulers at once, each on its own pthread standing in for a CPU core. Two setups are planned: global scheduling, where every core pulls from one shared ready queue protected by a lock, and partitioned scheduling, where each core has its own scheduler and its own threads. The runtime already supports this (per-scheduler state, a per-thread timer, and an optional lock around the policy), but `src/multi_core/` is still a stub and isn't part of the build yet.
 
 
 ## The policies
@@ -152,5 +167,38 @@ When a thread stops running, the runtime charges it for the CPU time it used. ST
 
 
 ## Benchmarks
+
+`make bench` runs every workload under every policy with a 10 ms quantum, then runs the interactive workload under RR and MLFQ with quanta of 1, 5, 10, and 50 ms. Each row is repeated three times and shows averages, with the standard deviation for turnaround and response.
+
+```
+./build/bench/bench            # readable table
+./build/bench/bench -r 10      # 10 repetitions per row
+./build/bench/bench --csv      # one CSV line per repetition, for graphs
+```
+
+The workloads:
+
+| Workload | Jobs | What it shows |
+|---|---|---|
+| convoy | one 200 ms job and four 10 ms jobs, all at once | Short jobs stuck behind a long one under FCFS |
+| staggered | a 200 ms job, then 20 ms jobs arriving every 40 ms | Whether a late short job can jump ahead (STCF yes, SJF no) |
+| interactive | two 300 ms CPU-bound jobs and two jobs that compute 2 ms then sleep 20 ms, ten times | Whether interactive threads get the CPU quickly when they wake up |
+| bad-estimates | the convoy jobs, but the long job claims 10 ms and the short ones claim 200 ms | How badly SJF and STCF do when the estimates are wrong |
+
+Jobs burn CPU with a busy loop calibrated at startup, so a "10 ms" job really needs about 10 ms of CPU.
+
+For each run it reports average turnaround (finish minus arrival), average response (first run minus arrival), average wait (time spent ready but not running), the worst turnaround, the number of context switches, and for sleeping jobs, how late they woke up on average.
+
+### Keeping the numbers honest
+
+Our threads all run on one kernel thread, so the whole benchmark uses one CPU core. On Linux, the benchmark pins itself to whichever core it starts on so that the kernel doesn't move it around mid-run. macOS has no way to pin a thread to a core, so results there are noisier, and the benchmark says so when it starts.
+
+The catch is that pinning doesn't keep anything else off that core. Turnaround and response are measured in real time, so if another program gets scheduled on the same core, our threads sit there waiting and the numbers come out higher than they should. The CPU time we charge each thread is less affected, since that clock doesn't advance while we're not running. The timer still ticks in real time, though, so a thread that loses part of its slice to another program still gets preempted on schedule.
+
+To get clean results:
+
+- Close anything heavy (browsers, IDEs, builds) before running.
+- Use more repetitions (`-r 10`) and look at the standard deviation. A large one usually means something else was competing for the core.
+- Compare policies against each other within the same run rather than reading too much into the exact milliseconds.
 
 

@@ -60,6 +60,11 @@ typedef struct scheduler{
     timer_t timer;
     int timer_created;
 
+    uthread_stats_t stats[MAX_THREADS];
+    int stats_count;
+    long switch_count;
+    tcb_t *last_dispatched;
+
 }scheduler_t;
 
 long now_us(void);

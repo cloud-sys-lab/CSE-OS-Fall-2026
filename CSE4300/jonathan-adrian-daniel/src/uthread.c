@@ -49,6 +49,13 @@ static long now_ms(void)
     return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
 }
 
+static long now_real_us(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000000L + ts.tv_nsec / 1000L;
+}
+
 long now_us(void)
 {
     struct timespec ts;
@@ -81,6 +88,7 @@ static void charge_running(scheduler_t *scheduler)
 {
     long used = now_us() - scheduler->running->dispatched_at;
     scheduler->running->remaining_us -= used;
+    scheduler->stats[scheduler->running->tid].cpu_us += used;
     scheduler->running->level_used_us += used;
     if (scheduler->running->remaining_us < 0)
         scheduler->running->remaining_us = 0; // overran its estimate
@@ -111,6 +119,11 @@ static void dispatch(scheduler_t *scheduler, tcb_t *t)
     scheduler->running = t;
     t->state = RUNNING;
     t->dispatched_at = now_us();
+    if (scheduler->stats[t->tid].first_run_us == 0)
+        scheduler->stats[t->tid].first_run_us = now_real_us();
+    if (t != scheduler->last_dispatched)
+        scheduler->switch_count++;
+    scheduler->last_dispatched = t;
     arm_timer(scheduler);
 }
 
@@ -172,6 +185,8 @@ static void thread_start(void)
     scheduler->running->fn(scheduler->running->arg);
     preempt_disable();
     scheduler = this_sched();
+    charge_running(scheduler);
+    scheduler->stats[scheduler->running->tid].finished_us = now_real_us();
     scheduler->running->state = DONE;
     schedule(scheduler);
 }
@@ -287,9 +302,24 @@ int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const 
     t->ctx.uc_link = NULL;
     makecontext(&t->ctx, thread_start, 0);
 
-    t->state = READY;
+    int delay = attr ? attr->start_delay_ms : 0;
+    memset(&scheduler->stats[t->tid], 0, sizeof scheduler->stats[t->tid]);
+    scheduler->stats[t->tid].arrived_us = now_real_us() + delay * 1000L;
+    if (t->tid >= scheduler->stats_count)
+        scheduler->stats_count = t->tid + 1;
+
     scheduler->threads[scheduler->thread_count++] = t;
 
+    if (delay > 0)
+    {
+        t->state = BLOCKED;
+        t->wake_at = now_ms() + delay;
+        scheduler->sleeping[scheduler->sleeping_count++] = t;
+        preempt_enable();
+        return t->tid;
+    }
+
+    t->state = READY;
     if (scheduler->policyAccessLock)
         pthread_mutex_lock(scheduler->policyAccessLock);
     scheduler->policy->enqueue(scheduler->policy->instance, t);
@@ -334,13 +364,35 @@ void uthread_run(scheduler_t *scheduler)
     atomic_fetch_add(&active_cores, 1);
     preempt_disable();
 
+    scheduler->switch_count = 0;
+    scheduler->last_dispatched = NULL;
+    install_timer_handler();
+
     if (scheduler->policyAccessLock)
         pthread_mutex_lock(scheduler->policyAccessLock);
     tcb_t *first = scheduler->policy->pick_next(scheduler->policy->instance);
 
+    if (first == NULL && scheduler->sleeping_count > 0)
+    {
+        arm_timer(scheduler);
+        while (first == NULL && scheduler->sleeping_count > 0)
+        {
+            sigset_t none;
+            sigemptyset(&none);
+            if (scheduler->policyAccessLock)
+                pthread_mutex_unlock(scheduler->policyAccessLock);
+            sigsuspend(&none);
+            if (scheduler->policyAccessLock)
+                pthread_mutex_lock(scheduler->policyAccessLock);
+            wake_sleepers(scheduler);
+            first = scheduler->policy->pick_next(scheduler->policy->instance);
+        }
+        if (first == NULL)
+            stop_timer(scheduler);
+    }
+
     if (first != NULL)
     {
-        install_timer_handler();
         dispatch(scheduler, first);
         swapcontext(&(scheduler->main_ctx), &(scheduler->running->ctx));
         stop_timer(scheduler);
@@ -372,4 +424,17 @@ void uthread_run(scheduler_t *scheduler)
 
     current_sched = NULL;
     preempt_enable();
+}
+
+int uthread_get_stats(scheduler_t *scheduler, int tid, uthread_stats_t *out)
+{
+    if (scheduler == NULL || tid < 0 || tid >= scheduler->stats_count || out == NULL)
+        return -1;
+    *out = scheduler->stats[tid];
+    return 0;
+}
+
+long uthread_context_switches(scheduler_t *scheduler)
+{
+    return scheduler ? scheduler->switch_count : 0;
 }

@@ -16,7 +16,15 @@ typedef enum {
 
 typedef struct {
     int expected_ms;
+    int start_delay_ms;
 } uthread_attr_t;
+
+typedef struct {
+    long arrived_us;
+    long first_run_us;
+    long finished_us;
+    long cpu_us;
+} uthread_stats_t;
 
 
 
@@ -29,6 +37,10 @@ void uthread_yield(void);
 void uthread_sleep(int ms);
 
 void uthread_run(scheduler_t *scheduler);
+
+int uthread_get_stats(scheduler_t *scheduler, int tid, uthread_stats_t *out);
+
+long uthread_context_switches(scheduler_t *scheduler);
 
 #endif
 

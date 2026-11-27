@@ -68,7 +68,7 @@ static void wake_sleepers(scheduler_t *scheduler)
         {
             scheduler->sleeping[i] = scheduler->sleeping[--scheduler->sleeping_count];
             t->state = READY;
-            scheduler->policy->enqueue(t);
+            scheduler->policy->enqueue(scheduler->policy->instance, t);
         }
         else
         {
@@ -122,10 +122,10 @@ static void schedule(scheduler_t *scheduler)
         pthread_mutex_lock(scheduler->policyAccessLock);
 
     if (prev->state == READY)
-        scheduler->policy->enqueue(prev);
+        scheduler->policy->enqueue(scheduler->policy->instance, prev);
 
     wake_sleepers(scheduler);
-    tcb_t *next = scheduler->policy->pick_next();
+    tcb_t *next = scheduler->policy->pick_next(scheduler->policy->instance);
 
     while (next == NULL && scheduler->sleeping_count > 0)
     {
@@ -137,7 +137,7 @@ static void schedule(scheduler_t *scheduler)
         sigsuspend(&none);
         if (scheduler->policyAccessLock)
             pthread_mutex_lock(scheduler->policyAccessLock);
-        next = scheduler->policy->pick_next();
+        next = scheduler->policy->pick_next(scheduler->policy->instance);
     }
 
     if (next == NULL)
@@ -184,7 +184,7 @@ static void on_timer(int sig, siginfo_t *info, void *ucontext)
         pthread_mutex_lock(scheduler->policyAccessLock);
     wake_sleepers(scheduler);
     int preempt = scheduler->running != NULL &&
-                  scheduler->policy->should_preempt(scheduler->running);
+                  scheduler->policy->should_preempt(scheduler->policy->instance, scheduler->running);
     if (preempt)
     {
         charge_running(scheduler);
@@ -250,7 +250,7 @@ scheduler_t *uthread_init(policy_t which, int q)
     scheduler->quantum_ms = q;
     scheduler->policyAccessLock = NULL;
     if (scheduler->policy->init)
-        scheduler->policy->init(q);
+        scheduler->policy->instance = scheduler->policy->init(q);
     return scheduler;
 }
 
@@ -292,7 +292,7 @@ int uthread_create(scheduler_t *scheduler, void (*fn)(void *), void *arg, const 
 
     if (scheduler->policyAccessLock)
         pthread_mutex_lock(scheduler->policyAccessLock);
-    scheduler->policy->enqueue(t);
+    scheduler->policy->enqueue(scheduler->policy->instance, t);
     if (scheduler->policyAccessLock)
         pthread_mutex_unlock(scheduler->policyAccessLock);
 
@@ -336,7 +336,7 @@ void uthread_run(scheduler_t *scheduler)
 
     if (scheduler->policyAccessLock)
         pthread_mutex_lock(scheduler->policyAccessLock);
-    tcb_t *first = scheduler->policy->pick_next();
+    tcb_t *first = scheduler->policy->pick_next(scheduler->policy->instance);
 
     if (first != NULL)
     {

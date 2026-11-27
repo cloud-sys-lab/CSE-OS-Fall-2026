@@ -1,26 +1,38 @@
 #include <stddef.h>
+#include <stdlib.h>
 #include "uthread_internal.h"
 #include "queue.h"
 
-static queue_t ready;
-
-static void rr_enqueue(tcb_t *t)
+typedef struct{
+    queue_t *ready;
+} rr_instance;
+static void rr_enqueue(void* inst, tcb_t *t)
 {
-    queue_push(&ready, t);
+    rr_instance *instance = (rr_instance *) inst;
+    queue_push(instance->ready, t);
 }
 
-static tcb_t *rr_pick_next(void)
+static tcb_t *rr_pick_next(void* inst)
 {
-    return queue_pop(&ready);
+    rr_instance *instance = (rr_instance *) inst;
+    return queue_pop(instance->ready);
 }
 
-static int rr_should_preempt(tcb_t *running)
+static int rr_should_preempt(void* inst, tcb_t *running)
 {
+    (void) inst;
     return 1;
+}
+static void *rr_init(int q){
+    (void) q;   //this rr implementation does not use a time quantum internally in the policy specific handling, can therefore safely ignore q.
+    rr_instance *newInstance = malloc(sizeof(rr_instance));
+    newInstance->ready = calloc(1, sizeof(queue_t));
+    return newInstance;
 }
 
 sched_policy_t rr_policy = {
     .enqueue = rr_enqueue,
     .pick_next = rr_pick_next,
     .should_preempt = rr_should_preempt,
+    .init = rr_init
 };

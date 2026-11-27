@@ -36,10 +36,11 @@ typedef struct tcb
 
 typedef struct
 {
-    void (*enqueue)(tcb_t *t);
-    tcb_t *(*pick_next)(void);
-    int (*should_preempt)(tcb_t *running);
-    void (*init)(int quantum_ms);
+    void (*enqueue)(void* instance, tcb_t *t);
+    tcb_t *(*pick_next)(void* instance);
+    int (*should_preempt)(void* instance, tcb_t *running);
+    void* (*init)(int quantum_ms);
+    void* instance;
 } sched_policy_t;
 
 
@@ -58,6 +59,7 @@ typedef struct scheduler{
 
     timer_t timer;
     int timer_created;
+
 }scheduler_t;
 
 long now_us(void);

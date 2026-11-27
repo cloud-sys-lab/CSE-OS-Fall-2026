@@ -2,9 +2,11 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+#include "../shared/jobs.h"
+#include "../shared/statistics.h"
+
 #include "worker.h"
 #include "queue.h"
-#include "jobs.h"
 //----------------------------------------------------------
 // SEMAPHORE-Version
 //----------------------------------------------------------

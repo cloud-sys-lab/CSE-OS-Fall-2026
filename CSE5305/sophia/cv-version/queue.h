@@ -2,7 +2,8 @@
 #define QUEUE_H
 
 #include <pthread.h>
-#include "jobs.h"
+
+#include "../shared/jobs.h"
 
 // Maximum number of jobs that can be stored in the queue
 #define MAX_QUEUE_SIZE 100

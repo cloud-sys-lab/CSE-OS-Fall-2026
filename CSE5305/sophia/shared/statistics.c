@@ -4,6 +4,7 @@
 // Initializes shared statistics object
 void init_statistics(Statistics *stats){
     stats->jobs_completed = 0; // No jobs have been completed yet
+    stats->total_execution_time_ms = 0;
     stats->total_execution_time_ms = 0; // Total runtime starts at zero milliseconds
 
     // Initialize the mutex so multiple threads can safely update statistics without race conditions
@@ -27,7 +28,8 @@ void record_job_completion(Statistics *stats, long execution_time_ms){
 void print_statistics(Statistics *stats){
     printf("\n===== Scheduler Statistics =====\n");
     printf("Jobs Completed: %d\n", stats->jobs_completed); // Total number of completed jobs
-    printf("Total Runtime: %ld ms\n", stats->total_execution_time_ms); // Cumulative runtime of all jobs
+    printf("Total Job Runtime: %ld ms\n", stats->total_execution_time_ms); // Cumulative runtime of all jobs
+    printf("Wall Clock Runtime: %ld ms\n", stats->wall_clock_time_ms);
 
     // Avoid division by zero
     if (stats->jobs_completed > 0){

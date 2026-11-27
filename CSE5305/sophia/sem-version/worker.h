@@ -3,9 +3,10 @@
 
 #include <pthread.h>
 
+#include "../shared/jobs.h"
+#include "../shared/statistics.h"
+
 #include "queue.h"
-#include "jobs.h"
-#include "statistics.h"
 //----------------------------------------------------------
 // SEMAPHORE-Version
 //----------------------------------------------------------

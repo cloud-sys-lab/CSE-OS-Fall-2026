@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/time.h>
 
-#include "jobs.h"
+#include "../shared/workloads.h"
+#include "../shared/jobs.h"
+#include "../shared/statistics.h"
+
 #include "queue.h"
 #include "worker.h"
 //----------------------------------------------------------
@@ -33,11 +37,11 @@ int main()
 
     // Create sample jobs and place them into the shared queue
     // Jobs have increasing workloads to simulate varying execution times
-    enqueue(&queue, create_job(1, 5000000));
-    enqueue(&queue, create_job(2, 10000000));
-    enqueue(&queue, create_job(3, 15000000));
-    enqueue(&queue, create_job(4, 20000000));
-    enqueue(&queue, create_job(5, 25000000));
+    WorkloadJob jobs[MAX_WORKLOAD_JOBS];
+    int count = create_workload(jobs, WORKLOAD_BALANCED);
+    for(int i = 0; i < count; i++){
+        enqueue(&queue, create_job(jobs[i].id, jobs[i].size));
+    }
 
     // Shutdown flag shared by workers
     int shutdown = 0;
@@ -62,6 +66,10 @@ int main()
     // Both workers share the same statistics object so completed-job metrics can be collected across all threads
     args2.stats = &stats;
 
+    struct timeval scheduler_start;
+    struct timeval scheduler_end;
+    gettimeofday(&scheduler_start, NULL);
+
     // Create worker threads (2)
     pthread_create(&worker1, NULL, worker_thread, &args1);
     pthread_create(&worker2, NULL, worker_thread, &args2);
@@ -83,6 +91,11 @@ int main()
     // Wait for workers to exit
     pthread_join(worker1, NULL);
     pthread_join(worker2, NULL);
+
+    gettimeofday(&scheduler_end, NULL);
+    stats.wall_clock_time_ms =
+        (scheduler_end.tv_sec - scheduler_start.tv_sec) * 1000 +
+        (scheduler_end.tv_usec - scheduler_start.tv_usec) / 1000;
 
     // Print statistics report at shutdown
     print_statistics(&stats);

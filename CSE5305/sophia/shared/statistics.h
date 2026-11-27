@@ -11,6 +11,8 @@ typedef struct {
     // Stores the total execution time of all completed jobs (measured in milliseconds)
     long total_execution_time_ms;
 
+    long wall_clock_time_ms;
+
     // Mutex Lock to protect statistics values from concurrent access by multiple worker threads
     pthread_mutex_t mutex;
 } Statistics;

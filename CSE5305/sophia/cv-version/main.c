@@ -100,7 +100,7 @@ int main()
     // Print statistics report at shutdown
     print_statistics(&stats);
 
-    printf("All jobs complete.\n");
+    printf("All Conditional Variable jobs complete.\n");
 
     return 0;
 }

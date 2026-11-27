@@ -173,6 +173,10 @@ static int test_shared(policy_t policy, int *distinct_cores)
 
 int main(void)
 {
+#ifndef __linux__
+    printf("SKIP: multi-core needs per-thread timers (Linux only)\n");
+    return 0;
+#endif
     static const policy_t shared_policies[] = { POLICY_RR, POLICY_MLFQ, POLICY_STCF, POLICY_FCFS };
     int failed = 0;
     int max_cores = 0;

@@ -429,9 +429,10 @@ void uthread_run(scheduler_t *scheduler)
     destroy_timer(&core);
     current_core = NULL;
 
-    struct timespec zero = {0, 0};
-    while (sigtimedwait(&alrm, NULL, &zero) > 0)
-        ;
+    sigset_t pending;
+    int sig;
+    while (sigpending(&pending) == 0 && sigismember(&pending, SIGALRM))
+        sigwait(&alrm, &sig);
     pthread_sigmask(SIG_SETMASK, &saved_mask, NULL);
 }
 

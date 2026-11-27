@@ -29,11 +29,10 @@ static void short_job(void *arg)
 
 static void long_job(void *arg)
 {
-    (void) arg;
     uthread_attr_t short_attr = { .expected_ms = 50 };
 
     spin(100);
-    uthread_create(short_job, NULL, &short_attr);
+    uthread_create(arg, short_job, NULL, &short_attr);
     spin(100);
     order[pos++] = 'L';
 }
@@ -43,9 +42,9 @@ static int run(policy_t p, int long_expected_ms, const char *expected, const cha
     uthread_attr_t long_attr = { .expected_ms = long_expected_ms };
 
     pos = 0;
-    uthread_init(p, 10);
-    uthread_create(long_job, NULL, &long_attr);
-    uthread_run();
+    scheduler_t *scheduler = uthread_init(p, 10);
+    uthread_create(scheduler, long_job, scheduler, &long_attr);
+    uthread_run(scheduler);
     order[pos] = '\0';
 
     printf("%s: order %s (expected %s)\n", label, order, expected);

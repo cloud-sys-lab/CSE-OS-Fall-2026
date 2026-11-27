@@ -22,10 +22,10 @@ static void thread_b(void *arg)
 
 int main(void)
 {
-    uthread_init(POLICY_RR, 10);
-    uthread_create(thread_a, NULL, NULL);
-    uthread_create(thread_b, NULL, NULL);
-    uthread_run();
+    scheduler_t *scheduler = uthread_init(POLICY_RR, 10);
+    uthread_create(scheduler, thread_a, NULL, NULL);
+    uthread_create(scheduler, thread_b, NULL, NULL);
+    uthread_run(scheduler);
     printf("A spun %ld times before B got the CPU\n", a_count);
     printf("all threads finished\n");
     return 0;

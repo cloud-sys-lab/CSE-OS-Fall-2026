@@ -34,9 +34,9 @@ static void short_job(void *arg)
 
 static void hog(void *arg)
 {
-    (void) arg;
+    scheduler_t *scheduler = (scheduler_t*)arg;
     spin(60, 1);
-    uthread_create(short_job, NULL, NULL);
+    uthread_create(scheduler, short_job, NULL, NULL);
     spin(60, 1);
     order[pos++] = 'A';
 }
@@ -47,9 +47,9 @@ static int run(policy_t p)
     a_ran_during_b = 0;
     pos = 0;
 
-    uthread_init(p, 10);
-    uthread_create(hog, NULL, NULL);
-    uthread_run();
+    scheduler_t *scheduler = uthread_init(p, 10);
+    uthread_create(scheduler, hog, scheduler, NULL);
+    uthread_run(scheduler);
     order[pos] = '\0';
     return a_ran_during_b;
 }

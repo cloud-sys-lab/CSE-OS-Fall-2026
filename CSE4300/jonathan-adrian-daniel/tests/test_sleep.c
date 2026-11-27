@@ -37,16 +37,16 @@ static void lone_sleeper(void *arg)
 
 int main(void)
 {
-    uthread_init(POLICY_RR, 10);
-    uthread_create(sleeper, NULL, NULL);
-    uthread_create(worker, NULL, NULL);
-    uthread_run();
+    scheduler_t *scheduler = uthread_init(POLICY_RR, 10);
+    uthread_create(scheduler, sleeper, NULL, NULL);
+    uthread_create(scheduler, worker, NULL, NULL);
+    uthread_run(scheduler);
     printf("sleeper asked for 100 ms, slept %ld ms\n", slept_ms);
     printf("worker looped %ld times while it slept\n", worker_count);
 
-    uthread_init(POLICY_RR, 10);
-    uthread_create(lone_sleeper, NULL, NULL);
-    uthread_run();
+    scheduler_t *scheduler2 = uthread_init(POLICY_RR, 10);
+    uthread_create(scheduler2, lone_sleeper, NULL, NULL);
+    uthread_run(scheduler2);
     printf("lone sleeper asked for 50 ms, slept %ld ms\n", lone_slept_ms);
 
     printf("all threads finished\n");

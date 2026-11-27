@@ -1,6 +1,8 @@
 #ifndef UTHREAD_INTERNAL_H
 #define UTHREAD_INTERNAL_H
 
+#include <pthread.h>
+#include <time.h>
 #include <ucontext.h>
 #include "uthread.h"
 
@@ -39,6 +41,24 @@ typedef struct
     int (*should_preempt)(tcb_t *running);
     void (*init)(int quantum_ms);
 } sched_policy_t;
+
+
+typedef struct scheduler{
+    pthread_mutex_t* policyAccessLock;
+    sched_policy_t *policy;
+    tcb_t *running;
+    int quantum_ms;
+    ucontext_t main_ctx;
+
+    tcb_t *threads[MAX_THREADS];
+    int thread_count;
+
+    tcb_t *sleeping[MAX_THREADS];
+    int sleeping_count;
+
+    timer_t timer;
+    int timer_created;
+}scheduler_t;
 
 long now_us(void);
 

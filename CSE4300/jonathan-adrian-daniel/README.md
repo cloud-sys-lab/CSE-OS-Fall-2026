@@ -157,7 +157,9 @@ Each pthread that calls `uthread_run` acts as one CPU core, with its own schedul
 - **Global scheduling.** Several pthreads call `uthread_run` on the same scheduler. They all pull from one shared ready queue, so a thread can run on a different core each time it's picked. The scheduler's lock is held whenever a core touches the queue or the sleeping list.
 - **Partitioned scheduling.** Each pthread creates and runs its own scheduler, possibly with a different policy. Threads never move between cores, and the cores share nothing.
 
-This needs a separate timer for each core, which only Linux has. On macOS all the cores would share one process-wide timer, and when one core finished and turned it off, the others a layer of abstraction to simplify multiple core scheduling.  `src/multi_core/` holds a layer of abstraction to simplify multi-core scheduling.  the layer is light as calling `uthread_run` from several pthreads is all that's needed to simulate multiple cores.  It is not necessary in order to perform global or partitioned multi-core schedulers, however it helps keep track of the policy, cores, and set schedulers.
+This needs a separate timer for each core, which only Linux has. On macOS all the cores would share one process-wide timer, and when one core finished and turned it off, the others would stop getting ticks. So the multi-core tests skip themselves on macOS, and the benchmark only runs its multi-core rows on Linux.
+
+`include/multi_core.h` is a thin layer on top of this. You pick global or partitioned once with `initialize_multi_core`, give each core a policy with `setCorePolicy`, add threads with `policyAddProcess`, and start each core's pthread with `coreRun`. It keeps track of which scheduler belongs to which core, but it isn't required: calling `uthread_run` from several pthreads does the same thing by hand.
 
 
 ## The policies
@@ -192,6 +194,7 @@ This needs a separate timer for each core, which only Linux has. On macOS all th
 | `test_stcf` | A short job arriving late preempts a long one, unless the long one is nearly done |
 | `test_mlfq` | A new job runs ahead of a CPU-bound thread that's already been moved down |
 | `test_multicore` | Four cores, both partitioned and global, with sleeping, yielding, and a thread created mid-run. Partitioned threads must stay on their own core. Linux only. |
+| `test_multicore_api` | The `multi_core.h` layer: setup and teardown, bad arguments, ordering in global and partitioned mode, and that cores really run at the same time. Linux only. |
 
 
 ## Benchmarks
@@ -221,7 +224,7 @@ For each run it reports average turnaround (finish minus arrival), average respo
 
 ### Keeping the numbers honest
 
-Our threads all run on one kernel thread, so the whole benchmark uses one CPU core. On Linux, the benchmark pins itself to whichever core it starts on so that the kernel doesn't move it around mid-run. macOS has no way to pin a thread to a core, so results there are noisier, and the benchmark says so when it starts.  On linux systems, the system can also run a version of the test that also includes benchmarks of the multi core systems as well, which runs our user threads across multiple kernel threads that act as multiple CPU cores.
+Our threads all run on one kernel thread, so the whole benchmark uses one CPU core. On Linux, the benchmark pins itself to whichever core it starts on so that the kernel doesn't move it around mid-run. macOS has no way to pin a thread to a core, so results there are noisier, and the benchmark says so when it starts. On Linux, the benchmark also has multi-core rows, which spread our threads across several pthreads acting as cores.
 
 The catch is that pinning doesn't keep anything else off that core. Turnaround and response are measured in real time, so if another program gets scheduled on the same core, our threads sit there waiting and the numbers come out higher than they should. The CPU time we charge each thread is less affected, since that clock doesn't advance while we're not running. The timer still ticks in real time, though, so a thread that loses part of its slice to another program still gets preempted on schedule.
 

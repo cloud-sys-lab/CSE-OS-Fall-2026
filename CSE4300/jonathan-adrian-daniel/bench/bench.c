@@ -280,6 +280,7 @@ static result_t run_once(const workload_t *w, policy_t p, int quantum)
     return r;
 }
 
+#ifdef __linux__
 typedef struct {
     int core_id;
     pthread_barrier_t *barrier;
@@ -365,6 +366,7 @@ static result_t run_once_multi(const workload_t *w, policy_t p, int quantum,
     multi_core_destroy();
     return r;
 }
+#endif
 
 static void mean_sd(const double *v, int n, double *mean, double *sd)
 {
@@ -410,8 +412,10 @@ static void bench(const workload_t *w, int pi, int quantum, const config_t *cfg)
     for (int i = 0; i < reps; i++) {
         if (cfg->mode == MODE_SINGLE)
             results[i] = run_once(w, policies[pi].policy, quantum);
+#ifdef __linux__
         else
             results[i] = run_once_multi(w, policies[pi].policy, quantum, cfg);
+#endif
         if (csv) {
             result_t *r = &results[i];
             printf("%s,%s,%d,%d,%.2f,%.2f,%.2f,%.2f,%.0f,%.2f,%s,%d\n",

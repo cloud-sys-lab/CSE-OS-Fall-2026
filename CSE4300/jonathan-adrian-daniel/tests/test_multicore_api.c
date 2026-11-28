@@ -33,6 +33,14 @@
 #include "multi_core.h"
 #include "uthread.h"
 
+#ifndef __linux__
+int main(void)
+{
+    printf("SKIP: multi-core needs per-thread timers (Linux only)\n");
+    return 0;
+}
+#else
+
 // Mirrors MAX_CORES in src/multi_core/multiCore.c.
 #define TEST_MAX_CORES 16
 #define TEST_TIMEOUT_MS 10000
@@ -906,10 +914,6 @@ static int group_selected(const char *group, int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-#ifndef __linux__
-    printf("SKIP: multi-core needs per-thread timers (Linux only)\n");
-    return 0;
-#endif
     for (int i = 1; i < argc; i++) {
         int known = 0;
         for (int g = 0; g < NGROUPS; g++)
@@ -950,3 +954,4 @@ int main(int argc, char **argv)
     printf(any_failed ? "FAIL\n" : "PASS\n");
     return any_failed ? 1 : 0;
 }
+#endif

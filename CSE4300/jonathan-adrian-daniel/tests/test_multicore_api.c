@@ -376,7 +376,7 @@ static int mc_destroy_while_running_fails(void)
     uthread_attr_t attr = { .expected_ms = 10 };
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(policyAddProcess(0, destroy_inside_fn, NULL, &attr), 0);
+    CHECK(policyAddProcess(0, destroy_inside_fn, NULL, &attr) >= 0);
     CHECK_EQ(coreRun(0), 0);
     CHECK_EQ(destroy_rc_inside, -1);           // a core was still running
     CHECK_EQ(multi_core_destroy(), 0);         // nothing running any more
@@ -388,7 +388,7 @@ static int mc_reinit_after_destroy(void)
     // Round 1: global
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('A', 0, 10, 0, 1), 0);
+    CHECK(add_job('A', 0, 10, 0, 1) >= 0);
     CHECK_EQ(coreRun(0), 0);
     CHECK_EQ(multi_core_destroy(), 0);
     CHECK(all_jobs_ran_once());
@@ -397,7 +397,7 @@ static int mc_reinit_after_destroy(void)
     reset_state();
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('B', 0, 10, 0, 1), 0);
+    CHECK(add_job('B', 0, 10, 0, 1) >= 0);
     CHECK_EQ(coreRun(0), 0);
     CHECK_EQ(multi_core_destroy(), 0);
     CHECK(all_jobs_ran_once());
@@ -409,7 +409,7 @@ static int mc_switch_global_to_partitioned(void)
 {
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('A', 0, 10, 0, 1), 0);
+    CHECK(add_job('A', 0, 10, 0, 1) >= 0);
     CHECK_EQ(coreRun(0), 0);
     CHECK_EQ(multi_core_destroy(), 0);
 
@@ -417,12 +417,92 @@ static int mc_switch_global_to_partitioned(void)
     CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
     CHECK_EQ(setCorePolicy(1, POLICY_FCFS, 5), 0);  // only legal in partitioned
-    CHECK_EQ(add_job('B', 0, 10, 0, 1), 0);
-    CHECK_EQ(add_job('C', 1, 10, 0, 1), 0);
+    CHECK(add_job('B', 0, 10, 0, 1) >= 0);
+    CHECK(add_job('C', 1, 10, 0, 1) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);
     CHECK(all_jobs_ran_once());
+    CHECK_EQ(multi_core_destroy(), 0);
+    return 1;
+}
+
+static int mc_add_returns_tid_global(void)
+{
+    // In global mode every job shares one scheduler, so tids keep counting
+    // up whichever core id the job is added through.
+    CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
+    CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
+    CHECK_EQ(add_job('A', 0, 10, 0, 1), 0);
+    CHECK_EQ(add_job('B', 1, 10, 0, 1), 1);
+    CHECK_EQ(add_job('C', 2, 10, 0, 1), 2);
+    CHECK_EQ(coreRun(0), 0);
+    CHECK(all_jobs_ran_once());
+    CHECK_EQ(multi_core_destroy(), 0);
+    return 1;
+}
+
+static int mc_add_returns_tid_partitioned(void)
+{
+    // Each partitioned core has its own scheduler, so each numbers its own
+    // threads from 0.
+    CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
+    CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
+    CHECK_EQ(setCorePolicy(1, POLICY_FCFS, 5), 0);
+    CHECK_EQ(add_job('A', 0, 10, 0, 1), 0);
+    CHECK_EQ(add_job('B', 0, 10, 0, 1), 1);
+    CHECK_EQ(add_job('C', 1, 10, 0, 1), 0);
+    run_cores_0_to_n(2);
+    CHECK(all_jobs_ran_once());
+    CHECK_EQ(multi_core_destroy(), 0);
+    return 1;
+}
+
+static int mc_get_scheduler_global(void)
+{
+    CHECK(core_get_scheduler(0) == NULL);          // not initialized
+    CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
+    CHECK(core_get_scheduler(0) == NULL);          // no policy set yet
+    CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
+    scheduler_t *s = core_get_scheduler(0);
+    CHECK(s != NULL);
+    CHECK(core_get_scheduler(3) == s);             // every core shares it
+    CHECK(core_get_scheduler(-1) == NULL);
+    CHECK(core_get_scheduler(TEST_MAX_CORES) == NULL);
+    CHECK_EQ(multi_core_destroy(), 0);
+    CHECK(core_get_scheduler(0) == NULL);          // freed by destroy
+    return 1;
+}
+
+static int mc_get_scheduler_partitioned(void)
+{
+    CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
+    CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
+    CHECK_EQ(setCorePolicy(1, POLICY_RR, 5), 0);
+    scheduler_t *s0 = core_get_scheduler(0), *s1 = core_get_scheduler(1);
+    CHECK(s0 != NULL);
+    CHECK(s1 != NULL);
+    CHECK(s0 != s1);                               // one per core
+    CHECK(core_get_scheduler(2) == NULL);          // core 2 not configured
+    CHECK_EQ(multi_core_destroy(), 0);
+    return 1;
+}
+
+static int mc_stats_through_get_scheduler(void)
+{
+    // The tid from policyAddProcess and the scheduler from core_get_scheduler
+    // together give a job's stats after its core has run.
+    CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
+    CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
+    int tid = add_job('A', 0, 10, 2000, 1);
+    CHECK(tid >= 0);
+    CHECK_EQ(coreRun(0), 0);
+    uthread_stats_t st;
+    CHECK_EQ(uthread_get_stats(core_get_scheduler(0), tid, &st), 0);
+    CHECK(st.first_run_us >= st.arrived_us);
+    CHECK(st.finished_us >= st.first_run_us);
+    CHECK(st.cpu_us >= 1000);
+    CHECK(uthread_context_switches(core_get_scheduler(0)) >= 1);
     CHECK_EQ(multi_core_destroy(), 0);
     return 1;
 }
@@ -435,10 +515,10 @@ static int gl_single_core_sjf_order(void)
 {
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_SJF, 5), 0);
-    CHECK_EQ(add_job('C', 0, 300, 0, 1), 0);
-    CHECK_EQ(add_job('B', 0, 200, 0, 1), 0);
-    CHECK_EQ(add_job('A', 0, 100, 0, 1), 0);
-    CHECK_EQ(add_job('D', 0, 100, 0, 1), 0);   // ties with A, added after it
+    CHECK(add_job('C', 0, 300, 0, 1) >= 0);
+    CHECK(add_job('B', 0, 200, 0, 1) >= 0);
+    CHECK(add_job('A', 0, 100, 0, 1) >= 0);
+    CHECK(add_job('D', 0, 100, 0, 1) >= 0);   // ties with A, added after it
     CHECK_EQ(coreRun(0), 0);
     CHECK(all_jobs_ran_once());
     CHECK(str_eq_report("finish", done_log, "ADBC"));
@@ -450,9 +530,9 @@ static int gl_single_core_fcfs_order(void)
 {
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('A', 0, 300, 0, 1), 0);
-    CHECK_EQ(add_job('B', 0, 100, 0, 1), 0);
-    CHECK_EQ(add_job('C', 0, 200, 0, 1), 0);
+    CHECK(add_job('A', 0, 300, 0, 1) >= 0);
+    CHECK(add_job('B', 0, 100, 0, 1) >= 0);
+    CHECK(add_job('C', 0, 200, 0, 1) >= 0);
     CHECK_EQ(coreRun(0), 0);
     CHECK(all_jobs_ran_once());
     CHECK(str_eq_report("finish", done_log, "ABC"));
@@ -478,7 +558,7 @@ static int gl_add_through_any_core_id(void)
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
     for (int c = 0; c < 4; c++)
-        CHECK_EQ(add_job((char)('A' + c), c, 10, 0, 1), 0);
+        CHECK(add_job((char)('A' + c), c, 10, 0, 1) >= 0);
     CHECK_EQ(coreRun(0), 0);                   // only one core runs
     CHECK(all_jobs_ran_once());
     CHECK(str_eq_report("finish", done_log, "ABCD"));
@@ -491,7 +571,7 @@ static int gl_four_cores_run_every_job_once(void)
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_RR, 5), 0);
     for (int i = 0; i < 16; i++)
-        CHECK_EQ(add_job((char)('a' + i), 0, 10, 1000, 3), 0);
+        CHECK(add_job((char)('a' + i), 0, 10, 1000, 3) >= 0);
     run_cores_0_to_n(4);
     for (int c = 0; c < 4; c++)
         CHECK_EQ(core_rc[c], 0);
@@ -506,7 +586,7 @@ static int gl_work_spreads_across_cores(void)
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_RR, 5), 0);
     for (int i = 0; i < 16; i++)
-        CHECK_EQ(add_job((char)('a' + i), 0, 10, 2000, 3), 0);
+        CHECK(add_job((char)('a' + i), 0, 10, 2000, 3) >= 0);
     run_cores_0_to_n(4);
     CHECK(all_jobs_ran_once());
 
@@ -536,10 +616,10 @@ static int gl_two_cores_stcf_shortest_first(void)
 {
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_STCF, 5), 0);
-    CHECK_EQ(add_job('A', 0, 300, 20000, 1), 0);
-    CHECK_EQ(add_job('B', 0, 300, 20000, 1), 0);
-    CHECK_EQ(add_job('C', 0, 100, 2000, 1), 0);
-    CHECK_EQ(add_job('D', 0, 100, 2000, 1), 0);
+    CHECK(add_job('A', 0, 300, 20000, 1) >= 0);
+    CHECK(add_job('B', 0, 300, 20000, 1) >= 0);
+    CHECK(add_job('C', 0, 100, 2000, 1) >= 0);
+    CHECK(add_job('D', 0, 100, 2000, 1) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);
@@ -561,8 +641,8 @@ static int gl_cores_run_in_parallel(void)
     atomic_store(&rv_saw_partner, 0);
     CHECK_EQ(initialize_multi_core(POLICY_GLOBAL), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(policyAddProcess(0, rendezvous_fn, NULL, &attr), 0);
-    CHECK_EQ(policyAddProcess(0, rendezvous_fn, NULL, &attr), 0);
+    CHECK(policyAddProcess(0, rendezvous_fn, NULL, &attr) >= 0);
+    CHECK(policyAddProcess(0, rendezvous_fn, NULL, &attr) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);
@@ -608,8 +688,8 @@ static int pt_single_core_runs_its_jobs(void)
 {
     CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('A', 0, 10, 0, 1), 0);
-    CHECK_EQ(add_job('B', 0, 10, 0, 1), 0);
+    CHECK(add_job('A', 0, 10, 0, 1) >= 0);
+    CHECK(add_job('B', 0, 10, 0, 1) >= 0);
     run_cores_0_to_n(1);
     CHECK_EQ(core_rc[0], 0);
     CHECK(all_jobs_ran_once());
@@ -626,7 +706,7 @@ static int pt_jobs_stay_on_their_core(void)
         CHECK_EQ(setCorePolicy(c, pol[c], 5), 0);
     for (int c = 0; c < 4; c++)
         for (int k = 0; k < 4; k++)
-            CHECK_EQ(add_job((char)('a' + c * 4 + k), c, 10, 1500, 3), 0);
+            CHECK(add_job((char)('a' + c * 4 + k), c, 10, 1500, 3) >= 0);
     run_cores_0_to_n(4);
     for (int c = 0; c < 4; c++)
         CHECK_EQ(core_rc[c], 0);
@@ -645,12 +725,12 @@ static int pt_per_core_policy_order(void)
     CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_SJF, 5), 0);
     CHECK_EQ(setCorePolicy(1, POLICY_FCFS, 5), 0);
-    CHECK_EQ(add_job('C', 0, 300, 0, 1), 0);
-    CHECK_EQ(add_job('B', 0, 200, 0, 1), 0);
-    CHECK_EQ(add_job('A', 0, 100, 0, 1), 0);
-    CHECK_EQ(add_job('X', 1, 300, 0, 1), 0);
-    CHECK_EQ(add_job('Y', 1, 100, 0, 1), 0);
-    CHECK_EQ(add_job('Z', 1, 200, 0, 1), 0);
+    CHECK(add_job('C', 0, 300, 0, 1) >= 0);
+    CHECK(add_job('B', 0, 200, 0, 1) >= 0);
+    CHECK(add_job('A', 0, 100, 0, 1) >= 0);
+    CHECK(add_job('X', 1, 300, 0, 1) >= 0);
+    CHECK(add_job('Y', 1, 100, 0, 1) >= 0);
+    CHECK(add_job('Z', 1, 200, 0, 1) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);
@@ -669,7 +749,7 @@ static int pt_no_work_stealing(void)
     CHECK_EQ(setCorePolicy(0, POLICY_RR, 5), 0);
     CHECK_EQ(setCorePolicy(1, POLICY_RR, 5), 0);
     for (int k = 0; k < 6; k++)
-        CHECK_EQ(add_job((char)('a' + k), 0, 10, 2000, 3), 0);
+        CHECK(add_job((char)('a' + k), 0, 10, 2000, 3) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);                   // idle core returns cleanly
@@ -688,8 +768,8 @@ static int pt_nonzero_core_ids(void)
     CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
     CHECK_EQ(setCorePolicy(3, POLICY_FCFS, 5), 0);
     CHECK_EQ(setCorePolicy(7, POLICY_RR, 5), 0);
-    CHECK_EQ(add_job('A', 3, 10, 500, 2), 0);
-    CHECK_EQ(add_job('B', 7, 10, 500, 2), 0);
+    CHECK(add_job('A', 3, 10, 500, 2) >= 0);
+    CHECK(add_job('B', 7, 10, 500, 2) >= 0);
     run_cores(2, ids);
     CHECK_EQ(core_rc[3], 0);
     CHECK_EQ(core_rc[7], 0);
@@ -707,8 +787,8 @@ static int pt_cores_run_in_parallel(void)
     CHECK_EQ(initialize_multi_core(POLICY_PARTITIONED), 0);
     CHECK_EQ(setCorePolicy(0, POLICY_FCFS, 5), 0);
     CHECK_EQ(setCorePolicy(1, POLICY_FCFS, 5), 0);
-    CHECK_EQ(policyAddProcess(0, rendezvous_fn, NULL, &attr), 0);
-    CHECK_EQ(policyAddProcess(1, rendezvous_fn, NULL, &attr), 0);
+    CHECK(policyAddProcess(0, rendezvous_fn, NULL, &attr) >= 0);
+    CHECK(policyAddProcess(1, rendezvous_fn, NULL, &attr) >= 0);
     run_cores_0_to_n(2);
     CHECK_EQ(core_rc[0], 0);
     CHECK_EQ(core_rc[1], 0);
@@ -742,6 +822,11 @@ static const test_t tests[] = {
     T("multicore", mc_destroy_while_running_fails),
     T("multicore", mc_reinit_after_destroy),
     T("multicore", mc_switch_global_to_partitioned),
+    T("multicore", mc_add_returns_tid_global),
+    T("multicore", mc_add_returns_tid_partitioned),
+    T("multicore", mc_get_scheduler_global),
+    T("multicore", mc_get_scheduler_partitioned),
+    T("multicore", mc_stats_through_get_scheduler),
 
     T("global", gl_single_core_sjf_order),
     T("global", gl_single_core_fcfs_order),

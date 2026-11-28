@@ -11,6 +11,20 @@ int totalCoresParticipating = 0;
 scheduler_t *schedulers[MAX_CORES] = {NULL};                      //Initialize schedulers as a 1D array of dynamically allocated scheduler objects (1 To 1 with locks)
 policy_m_t selectedPolicy = POLICY_UNDEFINED;
 
+scheduler_t* core_get_scheduler(int coreID){
+    if (coreID >= MAX_CORES || coreID < 0)
+        return NULL;
+    switch (selectedPolicy) {
+        case POLICY_GLOBAL:
+            return schedulers[0];
+        case POLICY_PARTITIONED:
+            return schedulers[coreID];
+        default:
+            break;
+    }
+    return NULL;
+}
+
 int initialize_multi_core(policy_m_t policy){
     pthread_mutex_lock(&atomicParticipating);
     if (selectedPolicy != POLICY_UNDEFINED){
@@ -117,14 +131,15 @@ int setCorePolicy(int coreID, policy_t newPolicy, int quantum){
 }
 
 int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthread_attr_t *attr){
+    int processID = 0;
     if (proc == NULL || coreID < 0 || coreID > MAX_CORES - 1)
         return -1;
     switch (selectedPolicy) {
         case POLICY_GLOBAL:
             if (schedulers[0] != NULL)
             {
-                int status = uthread_create(schedulers[0], proc, arg, attr);
-                if (status == -1){
+                processID = uthread_create(schedulers[0], proc, arg, attr);
+                if (processID == -1){
                     return -1;
                 }
             }
@@ -135,8 +150,8 @@ int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthre
         case POLICY_PARTITIONED:
             if (schedulers[coreID] != NULL)
             {
-                int status = uthread_create(schedulers[coreID], proc, arg, attr);
-                if (status == -1){
+                processID = uthread_create(schedulers[coreID], proc, arg, attr);
+                if (processID == -1){
                     return -1;
                 }
             }
@@ -147,5 +162,5 @@ int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthre
         default:
             return -1;
     }
-    return 0;
+    return processID;
 }

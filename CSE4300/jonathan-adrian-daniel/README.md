@@ -48,9 +48,11 @@ long uthread_context_switches(scheduler_t *s);
 ```c
 int initialize_multi_core(policy_m_t policy);
 int setCorePolicy(int coreID, policy_t newPolicy, int quantum);
-int coreRun(int coreID);
 int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthread_attr_t *attr);
+int coreRun(int coreID);
 int multi_core_destroy();
+
+scheduler_t* core_get_scheduler(int coreID);
 
 ```
 
@@ -84,7 +86,7 @@ src/uthread.c             the runtime: threads, switching, timer, sleep
 src/queue.c               FIFO queue
 src/heap.c                min-heap used by SJF and STCF
 src/policies/             one file per scheduling policy
-src/multi_core/           early multi-core wrapper, unused (see Multi-core)
+src/multi_core/           multi-core wrapper: global or partitioned cores (see Multi-core)
 bench/bench.c             benchmark program
 tests/                    one program per test
 ```
@@ -200,6 +202,8 @@ This needs a separate timer for each core, which only Linux has. On macOS all th
 ./build/bench/bench            # readable table
 ./build/bench/bench -r 10      # 10 repetitions per row
 ./build/bench/bench --csv      # one CSV line per repetition, for graphs
+./build/bench/bench --single-only   # skip the multi-core rows
+./build/bench/bench --multi-only    # only the multi-core rows
 ```
 
 The workloads:
@@ -217,7 +221,7 @@ For each run it reports average turnaround (finish minus arrival), average respo
 
 ### Keeping the numbers honest
 
-Our threads all run on one kernel thread, so the whole benchmark uses one CPU core. On Linux, the benchmark pins itself to whichever core it starts on so that the kernel doesn't move it around mid-run. macOS has no way to pin a thread to a core, so results there are noisier, and the benchmark says so when it starts.
+Our threads all run on one kernel thread, so the whole benchmark uses one CPU core. On Linux, the benchmark pins itself to whichever core it starts on so that the kernel doesn't move it around mid-run. macOS has no way to pin a thread to a core, so results there are noisier, and the benchmark says so when it starts.  On linux systems, the system can also run a version of the test that also includes benchmarks of the multi core systems as well, which runs our user threads across multiple kernel threads that act as multiple CPU cores.
 
 The catch is that pinning doesn't keep anything else off that core. Turnaround and response are measured in real time, so if another program gets scheduled on the same core, our threads sit there waiting and the numbers come out higher than they should. The CPU time we charge each thread is less affected, since that clock doesn't advance while we're not running. The timer still ticks in real time, though, so a thread that loses part of its slice to another program still gets preempted on schedule.
 

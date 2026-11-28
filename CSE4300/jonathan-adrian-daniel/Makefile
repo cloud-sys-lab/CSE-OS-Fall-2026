@@ -6,8 +6,7 @@ SRC = src/uthread.c src/queue.c src/heap.c $(wildcard src/policies/*.c) $(wildca
 OBJ = $(SRC:%.c=build/%.o)
 TESTS = $(patsubst %.c,build/%,$(wildcard tests/*.c))
 BENCH = build/bench/bench
-HEADERS = include/uthread.h include/multi_core.h src/uthread_internal.h src/queue.h src/heap.h \
-          src/multi_core/multiCore_internal.h
+HEADERS = include/uthread.h include/multi_core.h src/uthread_internal.h src/queue.h src/heap.h
 
 all: $(TESTS)
 

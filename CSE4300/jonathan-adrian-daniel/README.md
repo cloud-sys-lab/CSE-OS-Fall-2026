@@ -29,8 +29,8 @@ make clean
 
 ## Using the library
 
-The whole public API is in `include/uthread.h`:
-
+The public API is shared between `include/uthread.h` and `include/multi_core.h`:
+##### include/uthread.h
 ```c
 scheduler_t *uthread_init(policy_t policy, int quantum_ms);
 void uthread_destroy(scheduler_t *s);
@@ -42,9 +42,19 @@ int  uthread_core_id(void);
 
 int  uthread_get_stats(scheduler_t *s, int tid, uthread_stats_t *out);
 long uthread_context_switches(scheduler_t *s);
+
+```
+##### include/multi_core.h
+```c
+int initialize_multi_core(policy_m_t policy);
+int setCorePolicy(int coreID, policy_t newPolicy, int quantum);
+int coreRun(int coreID);
+int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthread_attr_t *attr);
+int multi_core_destroy();
+
 ```
 
-For example:
+### For example:
 
 ```c
 uthread_attr_t short_job = { .expected_ms = 50 };
@@ -145,9 +155,7 @@ Each pthread that calls `uthread_run` acts as one CPU core, with its own schedul
 - **Global scheduling.** Several pthreads call `uthread_run` on the same scheduler. They all pull from one shared ready queue, so a thread can run on a different core each time it's picked. The scheduler's lock is held whenever a core touches the queue or the sleeping list.
 - **Partitioned scheduling.** Each pthread creates and runs its own scheduler, possibly with a different policy. Threads never move between cores, and the cores share nothing.
 
-This needs a separate timer for each core, which only Linux has. On macOS all the cores would share one process-wide timer, and when one core finished and turned it off, the others would stop getting ticks. So `test_multicore` skips itself on macOS.
-
-`src/multi_core/` holds an earlier attempt at a separate multi-core API. Nothing uses it, since calling `uthread_run` from several pthreads turned out to be all that's needed.
+This needs a separate timer for each core, which only Linux has. On macOS all the cores would share one process-wide timer, and when one core finished and turned it off, the others a layer of abstraction to simplify multiple core scheduling.  `src/multi_core/` holds a layer of abstraction to simplify multi-core scheduling.  the layer is light as calling `uthread_run` from several pthreads is all that's needed to simulate multiple cores.  It is not necessary in order to perform global or partitioned multi-core schedulers, however it helps keep track of the policy, cores, and set schedulers.
 
 
 ## The policies

@@ -17,6 +17,8 @@
 //   With no arguments every group runs. Exit status is 0 only if every test
 //   that ran passed.
 
+// Expanded upon with AI to generate more edge tests than originally written.
+
 #include <pthread.h>
 #include <signal.h>
 #include <stdatomic.h>

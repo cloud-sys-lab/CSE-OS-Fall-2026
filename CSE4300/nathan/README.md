@@ -61,7 +61,7 @@ Place your project files inside your designated course submission folder (e.g., 
 ├── SchedulerCPU.py
 ├── test_scheduler_cpu.py
 ├── README.md
-└── presentation/          # Slides / presentation materials (6-7 minute walkthrough)
+└── presentation          # Slides / presentation materials (6-7 minute walkthrough)
 ```
 
 ---

@@ -13,10 +13,10 @@ policy_m_t selectedPolicy = POLICY_UNDEFINED;
 
 int initialize_multi_core(policy_m_t policy){
     pthread_mutex_lock(&atomicParticipating);
-    if (selectedPolicy != POLICY_UNDEFINED)
+    if (selectedPolicy != POLICY_UNDEFINED){
         pthread_mutex_unlock(&atomicParticipating);
-        
         return -1;
+    }
 
     switch (policy) {
         case POLICY_GLOBAL:

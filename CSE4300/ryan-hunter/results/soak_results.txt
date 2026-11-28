@@ -1,0 +1,6 @@
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+python3 tests/test_integration.py --soak
+PASS Three-minute live refresh run
+MEASURE soak duration=180.38s snapshots=180
+RESULT 1 integration checks passed

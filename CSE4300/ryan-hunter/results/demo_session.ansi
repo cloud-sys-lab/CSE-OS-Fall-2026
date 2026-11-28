@@ -1,0 +1,208 @@
+[?1049h[H[2JMINI TASK MANAGER   2026-11-19 20:31:12
+System CPU:   0.0%   Logical CPUs: 9   Process directories: 7
+RAM: 919.0 / 9967.3 MiB used ( 9.2%)   Available: 9048.3 MiB
+Sort: CPU   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      5  Running       0.0    0.01       0.50  mt-demo-cpu
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+First sample is a baseline. CPU usage updates after one interval.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:13
+System CPU:  11.2%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: CPU   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      5  Running     100.9    0.01       0.50  mt-demo-cpu
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Ready. Type 'help' for commands.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:14
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: CPU   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Ready. Type 'help' for commands.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:14
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Sorted by Memory.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: 7   Matches: 1/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Filter active. Use 'clear' to show all processes.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: all   Matches: 7/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      2  Sleeping      0.0    0.10      10.00  python3
+      1  Sleeping      0.0    0.06       5.75  codex
+     10  Running       0.0    0.01       0.88  minitask
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Filter cleared.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Filter active. Use 'clear' to show all processes.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Send SIGTERM to 7 (mt-demo-sleep)? Type 'yes 7' or 'no'.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Cancelled. No signal sent.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      99.8    0.01       0.50  mt-demo-cpu
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Send SIGTERM to 7 (mt-demo-sleep)? Type 'yes 7' or 'no'.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.6%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      97.4    0.01       0.50  mt-demo-cpu
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+      7  Running       0.0    0.00       0.00  mt-demo-sleep
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+SIGTERM sent to PID 7. Delivery does not guarantee immediate exit.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.6%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running      97.4    0.01       0.50  mt-demo-cpu
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+      7  Running       0.0    0.00       0.00  mt-demo-sleep
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Send SIGKILL to 8 (mt-demo-stub)? Type 'yes 8' or 'no'.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:   0.0%   Logical CPUs: 9   Process directories: 6
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 3/6   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running       0.0    0.01       0.50  mt-demo-cpu
+      8  Running       0.0    0.00       0.00  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+SIGKILL sent to PID 8. Delivery does not guarantee immediate exit.
+> [H[2JMINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:   0.0%   Logical CPUs: 9   Process directories: 5
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 2/5   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running       0.0    0.01       0.50  mt-demo-cpu
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Refreshed.
+> [?1049l

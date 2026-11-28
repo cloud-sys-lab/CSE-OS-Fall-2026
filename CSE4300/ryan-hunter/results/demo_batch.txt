@@ -1,0 +1,13 @@
+MINI TASK MANAGER   2026-11-19 20:31:12
+System CPU:  11.1%   Logical CPUs: 9   Process directories: 7
+RAM: 919.0 / 9967.3 MiB used ( 9.2%)   Available: 9048.3 MiB
+Sort: CPU   Filter: mt-demo   Matches: 4/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      5  Running      99.9    0.01       0.50  mt-demo-cpu
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+      8  Sleeping      0.0    0.01       0.50  mt-demo-stub
+
+CPU%: one full core = 100%. RSS is approximate. First baseline sample is omitted.

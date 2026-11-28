@@ -1,0 +1,83 @@
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+./tests/test_core
+PASS CPU descending with PID tiebreak
+PASS RSS descending with PID tiebreak
+PASS PID ascending
+PASS Name case-insensitive and deterministic
+PASS Empty and one-row sorts
+PASS Substring search ignores case
+PASS Numeric query matches exact PID
+PASS Trimmed numeric query
+PASS Empty query returns all
+PASS Whitespace query returns all
+PASS Missing name returns no match
+PASS Huge numeric query is rejected
+PASS In-place filtering
+PASS Invalid search arguments
+PASS State labels
+PASS Sort command
+PASS Search retains spaces
+PASS Clear command
+PASS Fractional refresh interval
+PASS NaN interval rejected
+PASS Zero interval rejected
+PASS Pause command
+PASS Manual refresh while paused
+PASS PID 1 protected
+PASS Self protected
+PASS Zero and negative PIDs protected
+PASS Permission error explained
+PASS Missing process error explained
+PASS Protected target creates no confirmation
+PASS System stats readable
+PASS Memory invariant
+PASS System CPU bounds
+PASS CPU and process counts
+PASS Allocate process list
+PASS Live list includes this test
+PASS First scan has baseline CPU values
+PASS Invalid list arguments rejected
+PASS Create controlled child
+PASS Parse name with space and parenthesis
+PASS Resident allocation visible
+PASS Stopped state visible
+PASS SIGTERM requires confirmation
+PASS Wrong PID cannot confirm
+PASS Cancellation preserves process
+PASS Changed identity refuses signal
+PASS Confirmed SIGTERM reaches owned child
+PASS Exited process returns ESRCH
+PASS Exited process read fails
+PASS Exit disappears from list
+PASS Create forced-termination child
+PASS SIGKILL call succeeds
+PASS SIGKILL reaches owned child
+PASS Create controlled CPU worker
+MEASURE CPU worker 99.90% (one core = 100%)
+PASS Busy process accumulates measurable CPU
+RESULT 54 passed, 0 failed
+NOTE Cross-user EPERM delivery requires a separate account; message mapping is tested here.
+python3 tests/test_integration.py
+PASS Help command
+PASS Invalid CLI arguments ('--interval', '0')
+PASS Invalid CLI arguments ('--interval', 'nan')
+PASS Invalid CLI arguments ('--limit', '-1')
+PASS Invalid CLI arguments ('--sort', 'invalid')
+PASS Invalid CLI arguments ('--iterations', '0')
+PASS Two sampled plain snapshots
+PASS Batch has no terminal escapes
+PASS Batch no-match result
+PASS Live terminal starts
+PASS Interactive sort command
+PASS Interactive name filter
+PASS Interactive no-match display
+PASS Pause command acknowledged
+PASS Protected PID rejected by interface
+PASS Confirmation does not signal yet
+PASS Cancellation leaves worker running
+PASS Confirmed UI termination exits worker
+PASS Interactive quit exits cleanly
+PASS Interactive process reaped
+PASS Terminal echo and canonical input restored
+RESULT 21 integration checks passed

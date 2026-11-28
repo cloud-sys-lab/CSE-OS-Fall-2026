@@ -36,7 +36,7 @@ int main()
     // Create sample jobs and place them into the shared queue
     // Jobs have increasing workloads to simulate varying execution times
     WorkloadJob jobs[MAX_WORKLOAD_JOBS];
-    int count = create_workload(jobs, WORKLOAD_BALANCED);
+    int count = create_workload(jobs, WORKLOAD_MIXED); // SMALL/BALANCED/HEAVY/MIXED workload options
     for(int i = 0; i < count; i++){
         enqueue(&queue, create_job(jobs[i].id, jobs[i].size));
     }

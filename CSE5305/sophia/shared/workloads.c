@@ -19,7 +19,7 @@ int create_workload(WorkloadJob jobs[], WorkloadType type){
             return 5;
 
         case WORKLOAD_HEAVY:
-            jobs[0] = (WorkloadJob){1,20000000};
+            jobs[0] = (WorkloadJob){1,200000000};
             jobs[1] = (WorkloadJob){2,300000000};
             jobs[2] = (WorkloadJob){3,400000000};
             jobs[3] = (WorkloadJob){4,500000000};

@@ -1,3 +1,4 @@
+//https://github.com/zampierilucas/scx_horoscope
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stddef.h>

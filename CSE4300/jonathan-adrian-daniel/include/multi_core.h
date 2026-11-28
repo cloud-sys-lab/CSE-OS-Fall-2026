@@ -14,7 +14,7 @@ typedef enum {
 
 int initialize_multi_core(policy_m_t policy);
 int setCorePolicy(int coreID, policy_t newPolicy, int quantum);
-int coreRun();
+int coreRun(int coreID);
 int policyAddProcess(int coreID, void (*proc)(void *arg), void* arg, const uthread_attr_t *attr);
 int multi_core_destroy();
 #endif

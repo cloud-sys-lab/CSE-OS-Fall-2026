@@ -1,5 +1,4 @@
 #include "multi_core.h"
-#include "multiCore_internal.h"
 #include "uthread.h"
 #include "uthread_internal.h"
 #include <bits/pthreadtypes.h>
@@ -19,6 +18,8 @@ int initialize_multi_core(policy_m_t policy){
         case POLICY_GLOBAL:
             selectedPolicy = policy;
             break;
+        case POLICY_PARTITIONED:
+            selectedPolicy = policy;
         default:
             return -1;
     }
@@ -38,7 +39,7 @@ int multi_core_destroy(){
         }
     }
 }
-int coreRun(){
+int coreRun(int id){
     pthread_mutex_lock(&atomicParticipating);
     if (1+totalCoresParticipating > MAX_CORES){
         return -1;
@@ -56,6 +57,10 @@ int coreRun(){
             pthread_mutex_unlock(&atomicParticipating);
             uthread_run(schedulers[0]);
             pthread_mutex_lock(&atomicParticipating);
+
+            break;
+        case POLICY_PARTITIONED:
+            uthread_run(schedulers[id]);
 
             break;
         default:
@@ -79,7 +84,9 @@ int setCorePolicy(int coreID, policy_t newPolicy, int quantum){
          
     }
     else{
-        return -1;
+        if(schedulers[coreID] != NULL)
+            return -1;
+        schedulers[coreID] = uthread_init(newPolicy, quantum);
     }
     return 0;
 }

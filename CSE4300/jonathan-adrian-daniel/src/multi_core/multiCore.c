@@ -3,7 +3,6 @@
 #include "uthread_internal.h"
 #include <pthread.h>                            //using pthreads to simulate each core on a cpu
 #include <stdlib.h>
-#include <threads.h>
 
 #define MAX_CORES 16
 pthread_mutex_t atomicParticipating = PTHREAD_MUTEX_INITIALIZER;

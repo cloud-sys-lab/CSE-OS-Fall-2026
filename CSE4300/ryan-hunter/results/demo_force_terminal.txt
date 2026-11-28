@@ -1,0 +1,15 @@
+MINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:   0.0%   Logical CPUs: 9   Process directories: 6
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: mt-demo   Matches: 3/6   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      6  Sleeping      0.0    0.33      32.50  mt-demo-memory
+      5  Running       0.0    0.01       0.50  mt-demo-cpu
+      8  Running       0.0    0.00       0.00  mt-demo-stub
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+SIGKILL sent to PID 8. Delivery does not guarantee immediate exit.
+>

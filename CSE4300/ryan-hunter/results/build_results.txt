@@ -1,0 +1,12 @@
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c main.c -o main.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c process.c -o process.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c system_info.c -o system_info.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c sorting.c -o sorting.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c search.c -o search.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c control.c -o control.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c display.c -o display.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -MMD -MP -c refresh.c -o refresh.o
+cc  -o minitask main.o process.o system_info.o sorting.o search.o control.o display.o refresh.o 
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror  -o tests/demo_worker tests/demo_worker.c 

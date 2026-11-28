@@ -1,0 +1,13 @@
+MINI TASK MANAGER   2026-11-19 20:31:15
+System CPU:  11.4%   Logical CPUs: 9   Process directories: 7
+RAM: 918.9 / 9967.3 MiB used ( 9.2%)   Available: 9048.4 MiB
+Sort: Memory   Filter: 7   Matches: 1/7   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      7  Sleeping      0.0    0.01       0.50  mt-demo-sleep
+
+sort cpu|mem|pid|name   search TEXT   clear   next   prev
+kill PID   force PID   yes PID / no   interval SEC   pause   refresh   help   quit
+Filter active. Use 'clear' to show all processes.
+>

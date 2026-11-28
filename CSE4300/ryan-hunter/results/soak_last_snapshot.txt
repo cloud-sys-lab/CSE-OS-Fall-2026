@@ -1,0 +1,14 @@
+MINI TASK MANAGER   2026-11-19 20:29:37
+System CPU:   0.1%   Logical CPUs: 9   Process directories: 5
+RAM: 886.2 / 9967.3 MiB used ( 8.9%)   Available: 9081.0 MiB
+Sort: CPU   Filter: all   Matches: 5/5   Page: 1/1   Refresh 1.0s
+
+    PID  STATE        CPU%    MEM%    RSS MiB  NAME
+-------  --------- ------- ------- ----------  ------------------------------
+      1  Sleeping      0.0    0.06       5.75  codex
+      2  Sleeping      0.0    0.02       1.75  bash
+     42  Sleeping      0.0    0.01       1.25  make
+     43  Sleeping      0.0    0.10       9.88  python3
+     44  Running       0.0    0.01       1.25  minitask
+
+CPU%: one full core = 100%. RSS is approximate. First baseline sample is omitted.

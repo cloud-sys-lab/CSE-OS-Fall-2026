@@ -1,0 +1,30 @@
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+make clean
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+make[1]: Entering directory '/workspace/scratch/ebe4dc44c12c/output/mini-task-manager/ryan-hunter'
+rm -f minitask *.o *.d tests/test_core tests/demo_worker
+make[1]: Leaving directory '/workspace/scratch/ebe4dc44c12c/output/mini-task-manager/ryan-hunter'
+make CFLAGS='-std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer' LDFLAGS='-fsanitize=address,undefined' test
+make: TMPDIR value /tmp: No such file or directory
+make: using default temporary directory '/tmp'
+make[1]: Entering directory '/workspace/scratch/ebe4dc44c12c/output/mini-task-manager/ryan-hunter'
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c main.c -o main.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c process.c -o process.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c system_info.c -o system_info.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c sorting.c -o sorting.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c search.c -o search.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c control.c -o control.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c display.c -o display.o
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -MMD -MP -c refresh.c -o refresh.o
+cc -fsanitize=address,undefined -o minitask main.o process.o system_info.o sorting.o search.o control.o display.o refresh.o 
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I. -fsanitize=address,undefined -o tests/test_core tests/test_core.c process.c system_info.c sorting.c search.c control.c 
+cc -D_POSIX_C_SOURCE=200809L -std=c11 -O1 -g -Wall -Wextra -Wpedantic -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -fsanitize=address,undefined -o tests/demo_worker tests/demo_worker.c 
+./tests/test_core
+==57==LeakSanitizer has encountered a fatal error.
+==57==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1
+==57==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)
+make[1]: *** [Makefile:27: test] Error 1
+make[1]: Leaving directory '/workspace/scratch/ebe4dc44c12c/output/mini-task-manager/ryan-hunter'
+make: *** [Makefile:32: sanitize] Error 2

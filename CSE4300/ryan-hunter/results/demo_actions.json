@@ -1,0 +1,62 @@
+{
+  "environment": "Agent Linux sandbox; actual process IDs vary each run.",
+  "workers": {
+    "cpu": 5,
+    "memory": 6,
+    "sleep": 7,
+    "stubborn": 8
+  },
+  "actions": [
+    {
+      "command": "sort mem",
+      "observed": "Sorted by Memory."
+    },
+    {
+      "command": "search 7",
+      "observed": "Filter: 7"
+    },
+    {
+      "command": "clear",
+      "observed": "Filter: all"
+    },
+    {
+      "command": "search mt-demo",
+      "observed": "Filter: mt-demo"
+    },
+    {
+      "command": "kill 7",
+      "observed": "Type 'yes"
+    },
+    {
+      "command": "no",
+      "observed": "Cancelled. No signal sent."
+    },
+    {
+      "command": "kill 7",
+      "observed": "Type 'yes"
+    },
+    {
+      "command": "yes 7",
+      "observed": "SIGTERM sent"
+    },
+    {
+      "command": "force 8",
+      "observed": "Type 'yes"
+    },
+    {
+      "command": "yes 8",
+      "observed": "SIGKILL sent"
+    },
+    {
+      "command": "refresh",
+      "observed": "Refreshed."
+    }
+  ],
+  "verified": [
+    "cancel preserved sleep worker",
+    "confirmed SIGTERM exited sleep worker",
+    "confirmed SIGKILL exited stubborn worker",
+    "manager exited with status 0"
+  ],
+  "capture": "Actual pseudoterminal frames; text captures, not desktop screenshots."
+}
